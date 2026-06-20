@@ -16,6 +16,12 @@ import {
   MeetingDetailPage,
   MeetingListPage,
   MeetingMOMPage,
+  NoteDetailPage,
+  NoteFormPage,
+  NoteListPage,
+  DocumentDetailPage,
+  DocumentFormPage,
+  DocumentListPage,
   ProtectedRoute,
   ReportsPage,
   SalaryDetailPage,
@@ -64,6 +70,16 @@ function App() {
         <Route path="/meetings/new" element={<ProtectedLayout><AddMeetingPage /></ProtectedLayout>} />
         <Route path="/meetings/:id" element={<ProtectedLayout><MeetingDetailPage /></ProtectedLayout>} />
         <Route path="/meetings/:id/mom" element={<ProtectedLayout><MeetingMOMPage /></ProtectedLayout>} />
+
+        <Route path="/notes" element={<ProtectedLayout><NoteListPage /></ProtectedLayout>} />
+        <Route path="/notes/new" element={<ProtectedLayout><NoteFormPage /></ProtectedLayout>} />
+        <Route path="/notes/:id" element={<ProtectedLayout><NoteDetailPage /></ProtectedLayout>} />
+        <Route path="/notes/:id/edit" element={<ProtectedLayout><NoteFormPage /></ProtectedLayout>} />
+
+        <Route path="/documents" element={<ProtectedLayout><DocumentListPage /></ProtectedLayout>} />
+        <Route path="/documents/new" element={<ProtectedLayout><DocumentFormPage /></ProtectedLayout>} />
+        <Route path="/documents/:id" element={<ProtectedLayout><DocumentDetailPage /></ProtectedLayout>} />
+        <Route path="/documents/:id/edit" element={<ProtectedLayout><DocumentFormPage /></ProtectedLayout>} />
 
         <Route path="/leave" element={<ProtectedLayout><LeaveListPage /></ProtectedLayout>} />
         <Route path="/leave/new" element={<ProtectedLayout><AddLeavePage /></ProtectedLayout>} />

@@ -1,4 +1,14 @@
-const API_BASE_URL = "https://vasihsayed.pythonanywhere.com/api";
+// const API_BASE_URL = "https://vasihsayed.pythonanywhere.com/api";
+const API_BASE_URL = "http://127.0.0.1:8000/api";
+export const API_ROOT_URL = API_BASE_URL.replace(/\/api\/?$/, "");
+
+export function resolveAssetUrl(url) {
+  if (!url) return "";
+  const text = String(url);
+  if (/^https?:\/\//i.test(text)) return text;
+  if (text.startsWith("/")) return `${API_ROOT_URL}${text}`;
+  return text;
+}
 
 export const TOKEN_KEYS = {
   access: "pwm_access_token",
@@ -134,6 +144,8 @@ export const api = {
   remove: (path) => apiRequest(path, { method: "DELETE" }),
   upload: (path, formData) =>
     apiRequest(path, { method: "POST", body: formData, isFormData: true }),
+  uploadUpdate: (path, formData) =>
+    apiRequest(path, { method: "PATCH", body: formData, isFormData: true }),
 };
 
 export const endpoints = {
@@ -155,6 +167,9 @@ export const endpoints = {
   emailVariables: "/management/email-variables/",
   designations: "/management/designations/",
   salaryChanges: "/management/salary-changes/",
+  notes: "/notes/",
+  documents: "/documents/",
+  documentCategories: "/document-categories/",
   attachments: "/management/attachments/",
 };
 

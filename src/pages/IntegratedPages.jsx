@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { T } from '../theme';
-import { api, endpoints, getAccessToken, getErrorMessage, normalizeList } from '../api/client';
+import { api, endpoints, getAccessToken, getErrorMessage, normalizeList, resolveAssetUrl } from '../api/client';
 import { useApiDetail, useApiList } from '../hooks/useApi';
 import {
   Badge, Breadcrumb, Btn, Card, EmptyState, FilterChips, Input, Modal, PageHeader,
@@ -17,6 +17,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const money = (v) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
 const asList = (payload) => normalizeList(payload);
 const nice = (s) => String(s || '').replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+const boolText = (v) => (v === false ? 'Inactive' : 'Active');
 const timeText = (v) => (v ? String(v).slice(0, 5) : '—');
 const dateText = (v) => (v || '—');
 const monthLabel = (value) => {
@@ -185,17 +186,17 @@ function MultiSelectBox({ label, selected = [], onToggle, items, labelKey = 'nam
 }
 
 function useBootstrap() {
-  const [data, setData] = useState({ jobs: [], sources: [], projects: [], employees: [], emailTypes: [], emailTemplates: [], emailVariables: [] });
+  const [data, setData] = useState({ jobs: [], sources: [], projects: [], employees: [], emailTypes: [], emailTemplates: [], emailVariables: [], documentCategories: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const load = async () => {
     setLoading(true); setError('');
     try {
-      const [jobs, sources, projects, employees, emailTypes, emailTemplates, emailVariables] = await Promise.all([
+      const [jobs, sources, projects, employees, emailTypes, emailTemplates, emailVariables, documentCategories] = await Promise.all([
         api.list(endpoints.jobs), api.list(endpoints.sources), api.list(endpoints.projects), api.list(endpoints.employees),
-        api.list(endpoints.emailTypes), api.list(endpoints.emailTemplates), api.list(endpoints.emailVariables, { active: 1 }),
+        api.list(endpoints.emailTypes), api.list(endpoints.emailTemplates), api.list(endpoints.emailVariables, { active: 1 }), api.list(endpoints.documentCategories, { is_active: true }),
       ]);
-      setData({ jobs: asList(jobs), sources: asList(sources), projects: asList(projects), employees: asList(employees), emailTypes: asList(emailTypes), emailTemplates: asList(emailTemplates), emailVariables: asList(emailVariables) });
+      setData({ jobs: asList(jobs), sources: asList(sources), projects: asList(projects), employees: asList(employees), emailTypes: asList(emailTypes), emailTemplates: asList(emailTemplates), emailVariables: asList(emailVariables), documentCategories: asList(documentCategories) });
     } catch (err) { setError(getErrorMessage(err)); }
     finally { setLoading(false); }
   };
@@ -596,6 +597,202 @@ export function AddMeetingPage(){
 function ListShell({ title, sub, add, onAdd, error, loading, empty, children }) { return <div><PageHeader title={title} sub={sub} action={add&&<Btn variant="gold" onClick={onAdd}>{add}</Btn>}/>{error&&<Notice type="error">{error}</Notice>}{loading?<LoadingCard/>:children?.props?.children?.props?.children?.length===0?<EmptyState title={empty} sub="Create your first record."/>:children}</div>; }
 function WizardForm({ title, back, save, children, dirty=false }) { const navigate=useNavigate(); const [saving,setSaving]=useState(false); const [error,setError]=useState(''); useUnsavedPrompt(Boolean(dirty)); const leave=()=>{ if(confirmUnsaved(Boolean(dirty))) navigate(back); }; const submit=async()=>{setSaving(true);setError('');try{await save();}catch(err){setError(getErrorMessage(err));}finally{setSaving(false);}}; return <div><PageHeader title={title} action={<Btn variant="outline" onClick={leave}>← Back</Btn>}/>{error&&<Notice type="error">{error}</Notice>}<Card>{children}<div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:18}}><Btn variant="outline" onClick={leave}>Cancel</Btn><Btn variant="gold" onClick={submit} disabled={saving}>{saving?'Saving…':'Save'}</Btn></div></Card></div>; }
 
+
+/* Notes */
+const noteTypeOptions = [[ 'plain','Plain Big Page' ],[ 'points','Point Wise Plan' ],[ 'table','Table' ],[ 'checklist','Checklist' ],[ 'custom','Custom JSON' ]];
+const noteStatusOptions = [[ 'will_start','Will Start' ],[ 'started','Started' ],[ 'partial_done','Partial Done' ],[ 'almost_done','Almost Done' ],[ 'completed','Completed' ],[ 'cancelled','Cancelled' ]];
+const emptyNoteData = (type) => type === 'table' ? { columns:['Name','Status','Date'], rows:[['', 'started', today()]] } : type === 'plain' ? { content:'' } : type === 'custom' ? {} : [{ name:'', status:'started', date:today() }];
+const normalizeNoteData = (type, data) => {
+  if(type === 'plain') return typeof data === 'string' ? { content:data } : (data && typeof data === 'object' && !Array.isArray(data) ? data : { content:'' });
+  if(type === 'table') return data && typeof data === 'object' && !Array.isArray(data) ? { columns: data.columns || [], rows: data.rows || [] } : emptyNoteData('table');
+  if(type === 'points' || type === 'checklist') return Array.isArray(data) ? data : [];
+  return data || {};
+};
+
+function SourceFields({ form, setForm, boot }) {
+  const freelanceProjects = (boot.projects || []).filter(p => p.source_type === 'freelancing' && (!form.freelance_source || String(p.freelance_source) === String(form.freelance_source)));
+  const jobProjects = (boot.projects || []).filter(p => p.source_type === 'job' && (!form.job || String(p.job) === String(form.job)));
+  const projectItems = form.freelance_source ? freelanceProjects : form.job ? jobProjects : boot.projects;
+  return <>
+    <RelationSelect label="Job" value={form.job} onChange={v=>setForm({...form,job:v,freelance_source:'',project:''})} items={boot.jobs || []} labelKey="company_name" blank="— Optional Job —" />
+    <RelationSelect label="Freelance Source" value={form.freelance_source} onChange={v=>setForm({...form,freelance_source:v,job:'',project:''})} items={boot.sources || []} blank="— Optional Freelance Source —" />
+    <RelationSelect label="Project" value={form.project} onChange={v=>setForm({...form,project:v})} items={projectItems || []} blank="— Optional Project —" />
+  </>;
+}
+
+function TableNoteEditor({ value, onChange }) {
+  const table = normalizeNoteData('table', value);
+  const cols = table.columns?.length ? table.columns : ['Name','Status','Date'];
+  const rows = table.rows || [];
+  const [columnText, setColumnText] = useState(cols.join(', '));
+
+  useEffect(() => {
+    setColumnText(cols.join(', '));
+  }, [cols.join('||')]);
+
+  const applyColumns = (text = columnText) => {
+    const nextCols = text.split(',').map(x => x.trim()).filter(Boolean);
+    const safeCols = nextCols.length ? nextCols : ['Name'];
+    const nextRows = rows.map(row => safeCols.map((_, ci) => row?.[ci] || ''));
+    onChange({ ...table, columns: safeCols, rows: nextRows });
+    setColumnText(safeCols.join(', '));
+  };
+
+  const updateCell = (r,c,val) => onChange({ ...table, columns: cols, rows: rows.map((row,idx)=>idx===r ? cols.map((_,ci)=>ci===c?val:(row?.[ci]||'')) : row) });
+  const addRow = () => onChange({ ...table, columns: cols, rows: [...rows, cols.map(()=> '')] });
+  const removeRow = (idx) => onChange({ ...table, columns: cols, rows: rows.filter((_,i)=>i!==idx) });
+
+  return <div style={{gridColumn:'1 / -1'}}>
+    <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:8,alignItems:'end'}}>
+      <Input label="Table Columns comma separated" value={columnText} onChange={e=>setColumnText(e.target.value)} onBlur={()=>applyColumns()} placeholder="Task, Status, Date" />
+      <Btn variant="outline" onClick={()=>applyColumns()} style={{height:38}}>Apply Columns</Btn>
+    </div>
+    <div style={{fontSize:11,color:T.slateLight,marginTop:6}}>Type columns with comma, then click Apply Columns or leave the field.</div>
+    <div style={{overflowX:'auto',marginTop:12,border:`1px solid ${T.border}`,borderRadius:10}}>
+      <table style={{width:'100%',borderCollapse:'collapse',minWidth:720}}>
+        <thead><tr>{cols.map((c,idx)=><Th key={`${c}-${idx}`}>{c}</Th>)}<Th>Action</Th></tr></thead>
+        <tbody>{rows.map((row,ri)=><tr key={ri}>{cols.map((c,ci)=><Td key={ci} alt={ri%2}><input value={row?.[ci] || ''} onChange={e=>updateCell(ri,ci,e.target.value)} style={{width:'100%',border:`1px solid ${T.border}`,borderRadius:6,padding:'7px 8px',fontSize:12}} /></Td>)}<Td alt={ri%2}><Btn variant="danger" onClick={()=>removeRow(ri)} style={{padding:'5px 10px',fontSize:11}}>Remove</Btn></Td></tr>)}</tbody>
+      </table>
+    </div>
+    <Btn variant="outline" onClick={addRow} style={{marginTop:10}}>＋ Add Table Row</Btn>
+  </div>;
+}
+
+function NoteDataEditor({ type, value, onChange }) {
+  const data = normalizeNoteData(type, value);
+  if(type === 'plain') return <div style={{gridColumn:'1 / -1'}}><Textarea label="Plain Note / Big Page" rows={14} value={data.content || ''} onChange={e=>onChange({ ...data, content:e.target.value })} placeholder="Write your full note here..." /></div>;
+  if(type === 'points' || type === 'checklist') {
+    const rows = Array.isArray(data) ? data : [];
+    const update = (idx, patch) => onChange(rows.map((r,i)=>i===idx?{...r,...patch}:r));
+    const add = () => onChange([...rows, { name:'', status:'started', date:today(), ...(type==='checklist'?{done:false}:{}) }]);
+    const remove = (idx) => onChange(rows.filter((_,i)=>i!==idx));
+    return <div style={{gridColumn:'1 / -1'}}>
+      <SectionTitle>{type === 'checklist' ? 'Checklist Items' : 'Point Wise Plan'}</SectionTitle>
+      <div style={{display:'grid',gap:10}}>{rows.map((row,idx)=><div key={idx} style={{display:'grid',gridTemplateColumns:type==='checklist'?'42px minmax(0,1.5fr) 170px 150px 42px':'minmax(0,1.5fr) 170px 150px 42px',gap:8,alignItems:'end',border:`1px solid ${T.border}`,background:T.cream,borderRadius:10,padding:10}}>
+        {type==='checklist' && <label style={{display:'flex',alignItems:'center',justifyContent:'center',height:36}}><input type="checkbox" checked={Boolean(row.done)} onChange={e=>update(idx,{done:e.target.checked,status:e.target.checked?'completed':row.status})}/></label>}
+        <Input label="Name / Point" value={row.name || ''} onChange={e=>update(idx,{name:e.target.value})}/>
+        <Select label="Status" value={row.status || 'started'} onChange={e=>update(idx,{status:e.target.value})} options={noteStatusOptions}/>
+        <Input label="Date" type="date" value={row.date || ''} onChange={e=>update(idx,{date:e.target.value})}/>
+        <Btn variant="danger" onClick={()=>remove(idx)} style={{padding:'8px 10px'}}>×</Btn>
+      </div>)}</div>
+      <Btn variant="outline" onClick={add} style={{marginTop:10}}>＋ Add {type === 'checklist' ? 'Checklist Item' : 'Point'}</Btn>
+    </div>;
+  }
+  if(type === 'table') return <TableNoteEditor value={data} onChange={onChange} />;
+  return <div style={{gridColumn:'1 / -1'}}><Textarea label="Custom JSON / Raw Data" rows={10} value={typeof data?.raw === 'string' ? data.raw : JSON.stringify(data || {}, null, 2)} onChange={e=>onChange({ raw:e.target.value })}/></div>;
+}
+
+function NoteDataView({ type, data }) {
+  const normalized = normalizeNoteData(type, data);
+  if(type === 'plain') return <div style={{whiteSpace:'pre-wrap',lineHeight:1.7,fontSize:14,color:T.slate}}>{normalized.content || '—'}</div>;
+  if(type === 'points' || type === 'checklist') return <div style={{display:'grid',gap:10}}>{(normalized || []).map((row,idx)=><div key={idx} style={{display:'flex',gap:10,alignItems:'flex-start',border:`1px solid ${T.border}`,background:idx%2?T.rowAlt:T.white,borderRadius:10,padding:12}}><span style={{width:26,height:26,borderRadius:'50%',background:row.done||row.status==='completed'?T.successBg:T.goldLight,color:row.done||row.status==='completed'?T.success:T.goldDark,display:'inline-flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:12}}>{type==='checklist'?(row.done||row.status==='completed'?'✓':'○'):idx+1}</span><div style={{flex:1}}><div style={{fontWeight:700,color:T.navy}}>{row.name || `Item ${idx+1}`}</div><div style={{display:'flex',gap:8,marginTop:6,flexWrap:'wrap'}}><StatusBadge status={row.status || 'started'} />{row.date && <Badge label={row.date} color="slate" />}</div></div></div>)}</div>;
+  if(type === 'table') {
+    const cols = normalized.columns || [];
+    const rows = normalized.rows || [];
+    return <TableWrapper><thead><tr>{cols.map(c=><Th key={c}>{c}</Th>)}</tr></thead><tbody>{rows.map((row,ri)=><tr key={ri}>{cols.map((c,ci)=><Td key={ci} alt={ri%2}>{row?.[ci] || '—'}</Td>)}</tr>)}</tbody></TableWrapper>;
+  }
+  return <pre style={{whiteSpace:'pre-wrap',fontSize:12,color:T.slate,background:T.cream,border:`1px solid ${T.border}`,borderRadius:10,padding:12}}>{JSON.stringify(normalized, null, 2)}</pre>;
+}
+
+function notePreviewText(note) {
+  const data = normalizeNoteData(note.data_type, note.data);
+  if(note.data_type === 'plain') return String(data.content || '').slice(0, 120) || note.description || '—';
+  if(note.data_type === 'table') return `${data.columns?.length || 0} columns · ${data.rows?.length || 0} rows`;
+  if(Array.isArray(data)) return `${data.length} items`;
+  return note.description || 'Custom JSON data';
+}
+
+export function NoteListPage(){
+  const navigate=useNavigate();
+  const [filter,setFilter]=useState('all');
+  const params = filter==='all' ? {} : noteStatusOptions.some(([v])=>v===filter) ? {status:filter} : {data_type:filter};
+  const {items,loading,error,reload}=useApiList(endpoints.notes, params, [filter]);
+  const remove=async(id)=>{if(!confirm('Delete note?'))return; await api.remove(`${endpoints.notes}${id}/`); reload();};
+  return <div><PageHeader title="Notes" sub="Plain pages, point-wise plans, tables and checklists" action={<Btn variant="gold" onClick={()=>navigate('/notes/new')}>＋ Add Note</Btn>}/>
+    <FilterChips active={filter} onChange={setFilter} options={[[ 'all','All' ],[ 'plain','Plain' ],[ 'points','Points' ],[ 'table','Table' ],[ 'checklist','Checklist' ],[ 'started','Started' ],[ 'partial_done','Partial' ],[ 'completed','Completed' ]]}/>
+    {error&&<Notice type="error">{error}</Notice>}
+    {loading?<LoadingCard/>:!items.length?<EmptyState icon="📝" title="No notes found" sub="Create your first note." action={<Btn variant="gold" onClick={()=>navigate('/notes/new')}>＋ Add Note</Btn>}/>:<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(290px,1fr))',gap:14}}>{items.map(note=><Card key={note.id} style={{cursor:'pointer',display:'flex',flexDirection:'column',gap:10}}><div onClick={()=>navigate(`/notes/${note.id}`)} style={{flex:1}}><div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'flex-start'}}><div><h3 style={{fontSize:15,color:T.navy,marginBottom:5}}>{note.label}</h3><div style={{display:'flex',gap:6,flexWrap:'wrap'}}><Badge label={nice(note.data_type)} color="info"/><StatusBadge status={note.status}/></div></div><Badge label={boolText(note.is_active)} color={note.is_active===false?'slate':'success'}/></div><p style={{fontSize:12,color:T.slateLight,lineHeight:1.5,marginTop:12}}>{notePreviewText(note)}</p><div style={{fontSize:11,color:T.slateLight,marginTop:10}}>{note.job_name || note.freelance_source_name || note.project_name || 'General Note'}</div></div><div style={{display:'flex',justifyContent:'flex-end',gap:6,borderTop:`1px solid ${T.border}`,paddingTop:10}}><Btn variant="outline" onClick={()=>navigate(`/notes/${note.id}/edit`)} style={{fontSize:11,padding:'5px 10px'}}>Edit</Btn><Btn variant="danger" onClick={()=>remove(note.id)} style={{fontSize:11,padding:'5px 10px'}}>Delete</Btn></div></Card>)}</div>}
+  </div>;
+}
+
+export function NoteDetailPage(){
+  const {id}=useParams(); const navigate=useNavigate(); const {item,loading,error,reload}=useApiDetail(`${endpoints.notes}${id}/`,[id]);
+  const remove=async()=>{if(!confirm('Delete note?'))return; await api.remove(`${endpoints.notes}${id}/`); navigate('/notes');};
+  const setStatus=async(status)=>{await api.update(`${endpoints.notes}${id}/`,{status}); reload();};
+  if(loading)return <LoadingCard/>; if(error)return <Notice type="error">{error}</Notice>; if(!item)return null;
+  return <div><Breadcrumb items={['Dashboard','Notes',item.label]}/><PageHeader title={item.label} sub={item.description || 'Note detail'} action={<><Btn variant="outline" onClick={()=>navigate('/notes')}>← Back</Btn><Btn variant="outline" onClick={()=>navigate(`/notes/${id}/edit`)}>Edit</Btn><Btn variant="danger" onClick={remove}>Delete</Btn></>}/>
+    <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 280px',gap:18}}><Card><div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap'}}><Badge label={nice(item.data_type)} color="info"/><StatusBadge status={item.status}/><Badge label={boolText(item.is_active)} color={item.is_active===false?'slate':'success'}/></div><NoteDataView type={item.data_type} data={item.data}/></Card><Card><SectionTitle>Info</SectionTitle>{[['Job',item.job_name],['Freelance Source',item.freelance_source_name],['Project',item.project_name],['Members',(item.members||[]).length ? `${item.members.length} selected` : '—'],['Created',item.created_at],['Updated',item.updated_at]].map(([l,v])=><div key={l} style={{padding:'9px 0',borderBottom:`1px solid ${T.border}`}}><div style={{fontSize:10,color:T.slateLight,fontWeight:800,textTransform:'uppercase'}}>{l}</div><div style={{fontSize:13,color:T.navy,fontWeight:600,marginTop:3}}>{v || '—'}</div></div>)}<SectionTitle style={{marginTop:14}}>Change Status</SectionTitle><Select value={item.status} onChange={e=>setStatus(e.target.value)} options={noteStatusOptions}/></Card></div>
+  </div>;
+}
+
+export function NoteFormPage(){
+  const {id}=useParams(); const edit=Boolean(id); const navigate=useNavigate(); const boot=useBootstrap();
+  const [form,setForm]=useState({label:'',description:'',job:'',freelance_source:'',project:'',members:[],data_type:'plain',data:emptyNoteData('plain'),status:'will_start',is_active:true});
+  const [loading,setLoading]=useState(edit); const [error,setError]=useState('');
+  useEffect(()=>{ if(!edit) return; setLoading(true); api.get(`${endpoints.notes}${id}/`).then(item=>setForm({...item,job:item.job||'',freelance_source:item.freelance_source||'',project:item.project||'',members:item.members||[],data:normalizeNoteData(item.data_type,item.data)})).catch(e=>setError(getErrorMessage(e))).finally(()=>setLoading(false)); },[id]);
+  const toggleMember = (memberId) => setForm(f=>({ ...f, members:f.members.map(String).includes(String(memberId)) ? f.members.filter(x=>String(x)!==String(memberId)) : [...f.members, memberId] }));
+  const setType = (type) => setForm(f=>({ ...f, data_type:type, data:emptyNoteData(type) }));
+  const save=async()=>{ const payload={...form,is_active:form.is_active===true||form.is_active==='true'}; if(edit) await api.update(`${endpoints.notes}${id}/`, payload); else await api.create(endpoints.notes, payload); navigate('/notes'); };
+  if(loading)return <LoadingCard/>;
+  return <WizardForm title={edit?'Edit Note':'Add Note'} back={edit?`/notes/${id}`:'/notes'} save={save} dirty={Boolean(form.label || form.description)}>{error&&<Notice type="error">{error}</Notice>}<FormGrid>
+    <Input label="Label" required value={form.label} onChange={e=>setForm({...form,label:e.target.value})}/>
+    <Select label="Data Type" value={form.data_type} onChange={e=>setType(e.target.value)} options={noteTypeOptions}/>
+    <Select label="Status" value={form.status} onChange={e=>setForm({...form,status:e.target.value})} options={noteStatusOptions}/>
+    <Select label="Active" value={String(form.is_active)} onChange={e=>setForm({...form,is_active:e.target.value==='true'})} options={[[ 'true','Active' ],[ 'false','Inactive' ]]}/>
+    <Textarea label="Description" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
+    <SourceFields form={form} setForm={setForm} boot={boot}/>
+    <div style={{gridColumn:'1 / -1'}}><MultiSelectBox label="Related Members" selected={form.members} onToggle={toggleMember} items={boot.employees || []}/></div>
+    <NoteDataEditor type={form.data_type} value={form.data} onChange={data=>setForm({...form,data})}/>
+  </FormGrid></WizardForm>;
+}
+
+/* Documents */
+const getDocumentUrl = (doc) => resolveAssetUrl(doc?.document_file || doc?.document_url || doc?.external_url);
+
+function DownloadButton({ url, label='Download', style={}, download=true }) {
+  const finalUrl = resolveAssetUrl(url);
+  if(!finalUrl) return <Btn variant="outline" disabled style={style}>No File</Btn>;
+  return <a href={finalUrl} {...(download ? { download: true } : {})} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{display:'inline-flex'}}><Btn variant="outline" style={style}>⬇ {label}</Btn></a>;
+}
+
+export function DocumentListPage(){
+  const navigate=useNavigate(); const boot=useBootstrap(); const [category,setCategory]=useState('');
+  const {items,loading,error,reload}=useApiList(endpoints.documents, category?{category}:{}, [category]);
+  const remove=async(id)=>{if(!confirm('Delete document?'))return; await api.remove(`${endpoints.documents}${id}/`); reload();};
+  return <div><PageHeader title="Documents" sub="Upload, organize and download project/job documents" action={<Btn variant="gold" onClick={()=>navigate('/documents/new')}>＋ Add Document</Btn>}/>
+    <div style={{display:'flex',gap:8,alignItems:'end',marginBottom:16,flexWrap:'wrap'}}><Select label="Category" value={category} onChange={e=>setCategory(e.target.value)} options={[[ '', 'All Categories' ],...(boot.documentCategories||[]).map(c=>[String(c.id), c.parent_name?`${c.parent_name} / ${c.name}`:c.name])]}/><Btn variant="outline" onClick={()=>setCategory('')}>Clear</Btn></div>
+    {error&&<Notice type="error">{error}</Notice>}{loading?<LoadingCard/>:!items.length?<EmptyState icon="📄" title="No documents found" sub="Upload your first document." action={<Btn variant="gold" onClick={()=>navigate('/documents/new')}>＋ Add Document</Btn>}/>:<TableWrapper><thead><tr><Th>Name</Th><Th>Category</Th><Th>Source</Th><Th>Status</Th><Th>File / URL</Th><Th>Actions</Th></tr></thead><tbody>{items.map((doc,i)=><tr key={doc.id} onClick={()=>navigate(`/documents/${doc.id}`)} style={{cursor:'pointer'}}><Td alt={i%2}><strong style={{color:T.navy}}>{doc.name}</strong><br/><span style={{fontSize:11,color:T.slateLight}}>{doc.description || doc.document_path || '—'}</span></Td><Td alt={i%2}>{doc.category_name || '—'}</Td><Td alt={i%2}>{doc.job_name || doc.freelance_source_name || doc.project_name || 'General'}</Td><Td alt={i%2}><Badge label={boolText(doc.is_active)} color={doc.is_active===false?'slate':'success'}/></Td><Td alt={i%2}><DownloadButton url={getDocumentUrl(doc)} style={{fontSize:11,padding:'5px 10px'}}/></Td><Td alt={i%2}><ActionCell onView={()=>navigate(`/documents/${doc.id}`)} onEdit={()=>navigate(`/documents/${doc.id}/edit`)} onDelete={()=>remove(doc.id)}/></Td></tr>)}</tbody></TableWrapper>}
+  </div>;
+}
+
+export function DocumentDetailPage(){
+  const {id}=useParams(); const navigate=useNavigate(); const {item,loading,error}=useApiDetail(`${endpoints.documents}${id}/`,[id]);
+  const remove=async()=>{if(!confirm('Delete document?'))return; await api.remove(`${endpoints.documents}${id}/`); navigate('/documents');};
+  if(loading)return <LoadingCard/>; if(error)return <Notice type="error">{error}</Notice>; if(!item)return null;
+  return <div><Breadcrumb items={['Dashboard','Documents',item.name]}/><PageHeader title={item.name} sub={item.description || 'Document detail'} action={<><Btn variant="outline" onClick={()=>navigate('/documents')}>← Back</Btn><DownloadButton url={getDocumentUrl(item)}/><Btn variant="outline" onClick={()=>navigate(`/documents/${id}/edit`)}>Edit</Btn><Btn variant="danger" onClick={remove}>Delete</Btn></>}/>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}><Card><SectionTitle>Document</SectionTitle>{[['Category',item.category_name],['Job',item.job_name],['Freelance Source',item.freelance_source_name],['Project',item.project_name],['Path',item.document_path],['External URL',item.external_url],['Active',boolText(item.is_active)]].map(([l,v])=><div key={l} style={{display:'flex',justifyContent:'space-between',gap:16,padding:'10px 0',borderBottom:`1px solid ${T.border}`}}><span style={{fontSize:12,color:T.slateLight,fontWeight:700}}>{l}</span><span style={{fontSize:13,color:T.navy,fontWeight:600,textAlign:'right',wordBreak:'break-word'}}>{v || '—'}</span></div>)}</Card><Card><SectionTitle>Quick Access</SectionTitle><div style={{display:'grid',gap:10}}><DownloadButton url={getDocumentUrl(item)} label="Download Document" style={{justifyContent:'center'}} />{getDocumentUrl(item) && <a href={getDocumentUrl(item)} target="_blank" rel="noreferrer"><Btn variant="gold" style={{justifyContent:'center',width:'100%'}}>Open Preview</Btn></a>}</div></Card></div>
+  </div>;
+}
+
+export function DocumentFormPage(){
+  const {id}=useParams(); const edit=Boolean(id); const navigate=useNavigate(); const boot=useBootstrap();
+  const [form,setForm]=useState({name:'',description:'',category:'',job:'',freelance_source:'',project:'',document_file:null,external_url:'',is_active:true});
+  const [loading,setLoading]=useState(edit); const [error,setError]=useState('');
+  useEffect(()=>{ if(!edit) return; setLoading(true); api.get(`${endpoints.documents}${id}/`).then(item=>setForm({...item,category:item.category||'',job:item.job||'',freelance_source:item.freelance_source||'',project:item.project||'',document_file:null,is_active:item.is_active!==false})).catch(e=>setError(getErrorMessage(e))).finally(()=>setLoading(false)); },[id]);
+  const save=async()=>{ const fd=new FormData(); const fields=['name','description','category','job','freelance_source','project','external_url']; fields.forEach(k=>{ if(form[k]!==undefined && form[k]!==null && form[k] !== '') fd.append(k, form[k]); }); fd.append('is_active', form.is_active ? 'true' : 'false'); if(form.document_file instanceof File) fd.append('document_file', form.document_file); if(edit) await api.uploadUpdate(`${endpoints.documents}${id}/`, fd); else await api.upload(endpoints.documents, fd); navigate('/documents'); };
+  if(loading)return <LoadingCard/>;
+  return <WizardForm title={edit?'Edit Document':'Add Document'} back={edit?`/documents/${id}`:'/documents'} save={save} dirty={Boolean(form.name || form.description || form.external_url || form.document_file)}>{error&&<Notice type="error">{error}</Notice>}<FormGrid>
+    <Input label="Name" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
+    <RelationSelect label="Category" value={form.category} onChange={v=>setForm({...form,category:v})} items={boot.documentCategories || []} blank="— Select Category —" />
+    <SourceFields form={form} setForm={setForm} boot={boot}/>
+    <Select label="Active" value={String(form.is_active)} onChange={e=>setForm({...form,is_active:e.target.value==='true'})} options={[[ 'true','Active' ],[ 'false','Inactive' ]]}/>
+    <Textarea label="Description" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
+    <Input label="External URL" value={form.external_url || ''} onChange={e=>setForm({...form,external_url:e.target.value})} placeholder="Optional Google Drive / live link" />
+    <Input label={edit?'Replace Document File':'Document File'} type="file" onChange={e=>setForm({...form,document_file:e.target.files?.[0] || null})}/>
+    {edit && form.document_url && <div><label style={{fontSize:12,fontWeight:600,color:T.slate}}>Current File</label><div style={{marginTop:6}}><DownloadButton url={getDocumentUrl(form)}/></div></div>}
+  </FormGrid></WizardForm>;
+}
+
 /* Leave */
 export function LeaveListPage(){ const navigate=useNavigate(); const {items,loading,error,reload}=useApiList(endpoints.leave); const remove=async(id)=>{if(!confirm('Delete leave?'))return; await api.remove(`/leave/${id}/`); reload();}; return <ListShell title="Leave / Holiday / Half Day" sub="Calendar/list data from backend" add="＋ Log Leave" onAdd={()=>navigate('/leave/new')} error={error} loading={loading}><TableWrapper><thead><tr><Th>Company</Th><Th>Date</Th><Th>Type</Th><Th>Paid</Th><Th>Deduction</Th><Th>Status</Th><Th>Actions</Th></tr></thead><tbody>{items.map((x,i)=><tr key={x.id}><Td alt={i%2}>{x.company_name}</Td><Td alt={i%2}>{x.date}</Td><Td alt={i%2}>{nice(x.leave_type)}</Td><Td alt={i%2}>{x.is_paid?'Paid':'Unpaid'}</Td><Td alt={i%2}>{money(x.deduction_amount)}</Td><Td alt={i%2}><StatusBadge status={x.status}/></Td><Td alt={i%2}><ActionCell onDelete={()=>remove(x.id)}/></Td></tr>)}</tbody></TableWrapper></ListShell> }
 export function LeaveDetailPage(){ const {id}=useParams(); const {item,loading,error}=useApiDetail(`/leave/${id}/`,[id]); if(loading)return <LoadingCard/>; if(error)return <Notice type="error">{error}</Notice>; return <RecordDetail title={item.title} back="/leave" badges={<><Badge label={nice(item.leave_type)} color="gold"/><StatusBadge status={item.status}/></>} sections={[[ 'Details', [['Company',item.company_name],['Date',item.date],['Reason',item.reason],['Paid',item.is_paid?'Yes':'No'],['Deduction',money(item.deduction_amount)],['Notes',item.notes]] ]]}/> }
@@ -609,18 +806,58 @@ export function AddSalaryPage(){
   const boot=useBootstrap();
   const [form,setForm]=useState({salary_type:'job',job:'',freelance_source:'',project:'',manual_source_name:'',month:today().slice(0,7)+'-01',period_start:'',period_end:'',expected_amount:0,received_amount:0,received_date:today(),notes:'',calculation_lines:[]});
   const [autoLoading, setAutoLoading] = useState(false);
+  const cleanDate = (value) => {
+    if (!value) return null;
+    if (typeof value === "string" && value.includes("T"))
+      return value.split("T")[0];
+    return value;
+  };
+
+  const cleanAmount = (value) => {
+    if (value === "" || value === null || value === undefined) return "0.00";
+    return String(value);
+  };
+
+  const buildSalaryPayload = () => {
+    const payload = {
+      salary_type: form.salary_type,
+      month: monthValue(form.month),
+      expected_amount: cleanAmount(form.expected_amount),
+      received_amount: cleanAmount(form.received_amount),
+      received_date: cleanDate(form.received_date),
+      notes: form.notes || "",
+      calculation_lines: form.calculation_lines || [],
+    };
+
+    if (form.salary_type === "job") {
+      payload.job = form.job;
+    }
+
+    if (form.salary_type === "freelancing") {
+      payload.freelance_source = form.freelance_source || null;
+      payload.project = form.project || null;
+      payload.period_start = cleanDate(form.period_start);
+      payload.period_end = cleanDate(form.period_end);
+    }
+
+    if (form.salary_type === "manual") {
+      payload.manual_source_name = form.manual_source_name || "";
+    }
+
+    return payload;
+  };
   const freelanceProjects = boot.projects.filter(p => p.source_type === 'freelancing' && (!form.freelance_source || String(p.freelance_source) === String(form.freelance_source)));
   const canCalc = (form.salary_type==='job' && form.job) || (form.salary_type==='freelancing' && (form.project || form.freelance_source));
-  const calcPayload = () => ({
-    salary_type: form.salary_type,
-    job: form.job,
-    freelance_source: form.freelance_source,
-    project: form.project,
-    month: monthValue(form.month),
-    received_date: form.received_date,
-    period_start: form.period_start,
-    period_end: form.period_end,
-  });
+const calcPayload = () => ({
+  salary_type: form.salary_type,
+  job: form.job || null,
+  freelance_source: form.freelance_source || null,
+  project: form.project || null,
+  month: monthValue(form.month),
+  received_date: cleanDate(form.received_date),
+  period_start: cleanDate(form.period_start),
+  period_end: cleanDate(form.period_end),
+});
   const applyCalcResult = (res) => setForm(f=>({
     ...f,
     month: res.month || monthValue(f.month),
@@ -647,7 +884,10 @@ export function AddSalaryPage(){
     run();
     return () => { cancelled = true; };
   }, [form.salary_type, form.job, form.freelance_source, form.project, form.month, form.received_date, form.period_start, form.period_end]);
-  const save=async()=>{await api.create(endpoints.salary,{...form, month: monthValue(form.month)}); navigate('/salary');};
+  const save = async () => {
+    await api.create(endpoints.salary, buildSalaryPayload());
+    navigate("/salary");
+  };
   const pending = Number(form.expected_amount||0)-Number(form.received_amount||0);
   return <WizardForm title="Add Salary / Payment" back="/salary" save={save}><FormGrid>
     <Select label="Type" value={form.salary_type} onChange={e=>setForm({...form,salary_type:e.target.value,job:'',freelance_source:'',project:'',expected_amount:0,period_start:'',period_end:'',calculation_lines:[]})} options={[[ 'job','Job Salary' ],[ 'freelancing','Freelance Payment' ],[ 'manual','Manual Payment' ]]}/>
@@ -726,7 +966,7 @@ const managementConfigs = {
   'email-variables': { title:'Email Variables', path:endpoints.emailVariables, add:'Add Variable', fields:[['key','Variable Key'],['label','Display Label'],['category','Category','select',[[ 'common','Common' ],[ 'person','Person / Recipient' ],[ 'job','Job' ],[ 'project','Project' ],[ 'task','Task' ],[ 'meeting','Meeting / MOM' ],[ 'leave','Leave' ],[ 'salary','Salary / Payment' ],[ 'custom','Custom' ]]],['default_value','Example / Default Value'],['is_required','Required While Sending','boolean'],['is_active','Active','boolean'],['description','Description','textarea']] },
   designations: { title:'Designation History', path:endpoints.designations, add:'Add Designation', fields:[['job','Job','relation:jobs'],['old_designation','Old Designation'],['new_designation','New Designation'],['effective_date','Effective Date','date'],['reason','Reason','textarea']] },
   'salary-changes': { title:'Salary Changes', path:endpoints.salaryChanges, add:'Add Salary Change', fields:[['job','Job','relation:jobs'],['old_amount','Old Amount','number'],['new_amount','New Amount','number'],['effective_date','Effective Date','date'],['reason','Reason','textarea']] },
-  attachments: { title:'Attachments', path:endpoints.attachments, add:'Add Attachment', fields:[['module','Module','select',[[ 'task','Task' ],[ 'meeting','Meeting' ],[ 'salary','Salary' ],[ 'project','Project' ],[ 'job','Job' ],[ 'other','Other' ]]],['object_id','Object ID','number'],['title','Title'],['file','File','file'],['notes','Notes','textarea']] },
+  'document-categories': { title:'Document Categories', path:endpoints.documentCategories, add:'Add Document Category', fields:[['name','Name'],['parent','Parent Category','relation:documentCategories'],['description','Description','textarea'],['is_active','Active','boolean']] },
 };export function ManagementPage(){ const {section='jobs'}=useParams(); const config=managementConfigs[section]||managementConfigs.jobs; const boot=useBootstrap(); const {items,loading,error,reload}=useApiList(config.path, {}, [section]); const [open,setOpen]=useState(false); const [editing,setEditing]=useState(null); const remove=async(id)=>{if(!confirm('Delete record?'))return; await api.remove(`${config.path}${id}/`); reload();}; return <div><PageHeader title={config.title} sub="Management setup page" action={<Btn variant="gold" onClick={()=>{setEditing(null);setOpen(true);}}>＋ {config.add}</Btn>}/>{error&&<Notice type="error">{error}</Notice>}{loading?<LoadingCard/>:<TableWrapper><thead><tr><Th>ID</Th><Th>Main</Th><Th>Status/Type</Th><Th>Created</Th><Th>Actions</Th></tr></thead><tbody>{items.map((x,i)=><tr key={x.id}><Td alt={i%2}>{x.id}</Td><Td alt={i%2}><strong style={{color:T.navy}}>{x.company_name||x.name||x.title||x.subject||x.host||x.new_designation||`Record ${x.id}`}</strong><br/><span style={{fontSize:11,color:T.slateLight}}>{x.job_title||x.email||x.description||x.notes||''}</span></Td><Td alt={i%2}>{x.status?<StatusBadge status={x.status}/>:<Badge label={x.member_type||x.source_type||x.code||'Active'} color="navy"/>}</Td><Td alt={i%2}>{x.created_at||'—'}</Td><Td alt={i%2}><ActionCell onEdit={()=>{setEditing(x);setOpen(true);}} onDelete={()=>remove(x.id)}/></Td></tr>)}</tbody></TableWrapper>}<CrudModal open={open} onClose={()=>setOpen(false)} config={config} item={editing} boot={boot} onSaved={()=>{setOpen(false);reload();}} /></div>; }
 function CrudModal({open,onClose,config,item,boot,onSaved}){
   const [form,setForm]=useState({});
@@ -738,10 +978,11 @@ function CrudModal({open,onClose,config,item,boot,onSaved}){
     if(config.title==='Employees / Members') Object.assign(defaults, { source_type:'manual', member_type:'employee' });
     if(config.title==='Jobs') Object.assign(defaults, { status:'active', salary_cycle_start_day:1, salary_cycle_end_day:31, salary_received_day:7, working_days: defaultWorkingDays });
     if(config.title==='Email Variables') Object.assign(defaults, { category:'custom', is_required:false, is_active:true });
+    if(config.title==='Document Categories') Object.assign(defaults, { parent:'', description:'', is_active:true });
     setForm(item ? {...item} : defaults);
     setError('');
   },[item,open,config.title]);
-  useEffect(()=>{ if(open && ['Projects', 'Email Templates', 'Employees / Members', 'Email Variables'].includes(config.title)) boot.reloadBootstrap?.(); },[open, config.title]);
+  useEffect(()=>{ if(open && ['Projects', 'Email Templates', 'Employees / Members', 'Email Variables', 'Document Categories'].includes(config.title)) boot.reloadBootstrap?.(); },[open, config.title]);
   useEffect(()=>{ if(config.title === 'Email Templates') boot.reloadBootstrap?.(); },[config.title]);
 
   const set=(k,v)=>{
@@ -763,7 +1004,7 @@ function CrudModal({open,onClose,config,item,boot,onSaved}){
     });
   };
 
-  const relationItems=(key)=> key==='jobs'?boot.jobs:key==='sources'?boot.sources:key==='emailTypes'?boot.emailTypes:[];
+  const relationItems=(key)=> key==='jobs'?boot.jobs:key==='sources'?boot.sources:key==='emailTypes'?boot.emailTypes:key==='documentCategories'?boot.documentCategories:[];
 
   const shouldShowField=(name)=>{
     if(config.title==='Projects'){
@@ -814,6 +1055,10 @@ function CrudModal({open,onClose,config,item,boot,onSaved}){
       data.is_required = data.is_required === true || data.is_required === 'true';
       data.is_active = data.is_active === true || data.is_active === 'true';
     }
+    if(config.title==='Document Categories') {
+      if(data.parent === '') data.parent = null;
+      data.is_active = data.is_active === true || data.is_active === 'true';
+    }
     return data;
   };
 
@@ -843,8 +1088,9 @@ function CrudModal({open,onClose,config,item,boot,onSaved}){
       if(type?.startsWith?.('relation:')){
         const rel=type.split(':')[1];
         const items=relationItems(rel);
-        const blank = rel==='sources' && items.length===0 ? 'Create Freelancing Source first' : '— Select —';
-        return <RelationSelect key={name} label={label} value={form[name]||''} onChange={v=>set(name,v)} items={items} labelKey={rel==='jobs'?'company_name':'name'} blank={blank}/>;
+        const blank = rel==='sources' && items.length===0 ? 'Create Freelancing Source first' : rel==='documentCategories' ? '— Root Category —' : '— Select —';
+        const filteredItems = config.title==='Document Categories' && item?.id ? items.filter(x=>String(x.id)!==String(item.id)) : items;
+        return <RelationSelect key={name} label={label} value={form[name]||''} onChange={v=>set(name,v)} items={filteredItems} labelKey={rel==='jobs'?'company_name':'name'} blank={blank}/>;
       }
       if(type==='select')return <Select key={name} label={label} value={form[name]||''} onChange={e=>set(name,e.target.value)} options={[[ '', '— Select —' ],...opts]}/>;
       return <Input key={name} label={label} type={type} value={form[name]||''} onChange={e=>set(name,e.target.value)}/>;

@@ -19,6 +19,8 @@ const NAV = [
   { path: '/dashboard',  icon: '🏠', label: 'Dashboard' },
   { path: '/tasks',      icon: '✅', label: 'Tasks' },
   { path: '/meetings',   icon: '📅', label: 'Meetings / MOM' },
+  { path: '/notes',      icon: '📝', label: 'Notes' },
+  { path: '/documents',  icon: '📄', label: 'Documents' },
   { path: '/leave',      icon: '🌴', label: 'Leave / Holiday' },
   { path: '/salary',     icon: '💰', label: 'Salary / Payments' },
   { path: '/emails',     icon: '📧', label: 'Emails' },
@@ -35,7 +37,7 @@ const MGMT = [
   { path: '/management/email-variables', icon: '🔣', label: 'Email Variables' },
   { path: '/management/designations', icon: '🪪', label: 'Designations' },
   { path: '/management/salary-changes', icon: '📈', label: 'Salary Changes' },
-  { path: '/management/attachments', icon: '📎', label: 'Attachments' },
+  { path: '/management/document-categories', icon: '🗂️', label: 'Document Categories' },
   { path: '/management/settings', icon: '⚙️', label: 'Settings' },
 ];
 
@@ -103,6 +105,8 @@ export const AppHeader = () => {
     '/dashboard': 'Dashboard',
     '/tasks': 'Tasks',
     '/meetings': 'Meetings / MOM',
+    '/notes': 'Notes',
+    '/documents': 'Documents',
     '/leave': 'Leave & Holidays',
     '/salary': 'Salary & Payments',
     '/emails': 'Emails',
@@ -116,7 +120,7 @@ export const AppHeader = () => {
     '/management/email-variables': 'Management › Email Variables',
     '/management/designations': 'Management › Designations',
     '/management/salary-changes': 'Management › Salary Changes',
-    '/management/attachments': 'Management › Attachments',
+    '/management/document-categories': 'Management › Document Categories',
     '/management/settings': 'Management › Settings',
   };
   const path = '/' + location.pathname.split('/').slice(1, 3).join('/');
