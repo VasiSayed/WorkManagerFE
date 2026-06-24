@@ -76,19 +76,101 @@ const mergeMomParsed = (current, parsed) => ({
   mom: parsed.mom ? normalizeMomNumbering(parsed.mom) : current.mom,
   action_items: parsed.action_items?.length ? parsed.action_items.map(p => ({...p, done: Boolean((current.action_items||[]).find(o => o.text === p.text)?.done) || Boolean(p.done)})) : current.action_items,
 });
+const UNSAVED_MESSAGE = "You have unsaved changes. Leave without saving?";
+
+const normalizeDirtyValue = (value) => {
+  if (value instanceof File) {
+    return {
+      name: value.name,
+      size: value.size,
+      type: value.type,
+      lastModified: value.lastModified,
+    };
+  }
+
+  if (Array.isArray(value)) return value.map(normalizeDirtyValue);
+
+  if (value && typeof value === "object") {
+    return Object.keys(value)
+      .sort()
+      .reduce((acc, key) => {
+        acc[key] = normalizeDirtyValue(value[key]);
+        return acc;
+      }, {});
+  }
+
+  return value === undefined ? null : value;
+};
+
+const dirtyString = (value) => JSON.stringify(normalizeDirtyValue(value));
 
 function useUnsavedPrompt(isDirty) {
+  const allowPopRef = useRef(false);
+
   useEffect(() => {
     if (!isDirty) return undefined;
-    const handler = (event) => {
+
+    const beforeUnloadHandler = (event) => {
       event.preventDefault();
-      event.returnValue = '';
-      return '';
+      event.returnValue = "";
+      return "";
     };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
+
+    const linkClickHandler = (event) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      const link = event.target?.closest?.("a[href]");
+      if (!link || link.target === "_blank" || link.hasAttribute("download"))
+        return;
+
+      const nextUrl = new URL(link.href, window.location.href);
+      if (nextUrl.origin !== window.location.origin) return;
+
+      const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      const next = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+      if (next === current) return;
+
+      if (!window.confirm(UNSAVED_MESSAGE)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.history.pushState({ __unsavedPrompt: true }, "", currentUrl);
+
+    const popStateHandler = () => {
+      if (allowPopRef.current) return;
+
+      if (window.confirm(UNSAVED_MESSAGE)) {
+        allowPopRef.current = true;
+        window.history.back();
+      } else {
+        window.history.pushState({ __unsavedPrompt: true }, "", currentUrl);
+      }
+    };
+
+    window.addEventListener("beforeunload", beforeUnloadHandler);
+    window.addEventListener("popstate", popStateHandler);
+    document.addEventListener("click", linkClickHandler, true);
+
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnloadHandler);
+      window.removeEventListener("popstate", popStateHandler);
+      document.removeEventListener("click", linkClickHandler, true);
+    };
   }, [isDirty]);
 }
+
 
 function confirmUnsaved(isDirty) {
   return !isDirty || window.confirm('You have unsaved changes. Leave without saving?');
@@ -528,6 +610,7 @@ export function MeetingMOMPage(){
   const isDirty = item && (form.mom !== (item.mom||'') || form.conclusion !== (item.conclusion||'') || form.next_action !== (item.next_action||'') || JSON.stringify(form.action_items||[]) !== JSON.stringify(item.action_items||[]) || form.status !== (item.status||'completed'));
   useUnsavedPrompt(Boolean(isDirty));
   const safeBack = () => { if (confirmUnsaved(Boolean(isDirty))) navigate('/meetings'); };
+  
   const save=async()=>{await api.update(`/meetings/${id}/mom/`,form); navigate(`/meetings/${id}`);};
   if(loading)return <LoadingCard/>;
   return <div>
@@ -755,15 +838,292 @@ function DownloadButton({ url, label='Download', style={}, download=true }) {
   return <a href={finalUrl} {...(download ? { download: true } : {})} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{display:'inline-flex'}}><Btn variant="outline" style={style}>⬇ {label}</Btn></a>;
 }
 
-export function DocumentListPage(){
-  const navigate=useNavigate(); const boot=useBootstrap(); const [category,setCategory]=useState('');
-  const {items,loading,error,reload}=useApiList(endpoints.documents, category?{category}:{}, [category]);
-  const remove=async(id)=>{if(!confirm('Delete document?'))return; await api.remove(`${endpoints.documents}${id}/`); reload();};
-  return <div><PageHeader title="Documents" sub="Upload, organize and download project/job documents" action={<Btn variant="gold" onClick={()=>navigate('/documents/new')}>＋ Add Document</Btn>}/>
-    <div style={{display:'flex',gap:8,alignItems:'end',marginBottom:16,flexWrap:'wrap'}}><Select label="Category" value={category} onChange={e=>setCategory(e.target.value)} options={[[ '', 'All Categories' ],...(boot.documentCategories||[]).map(c=>[String(c.id), c.parent_name?`${c.parent_name} / ${c.name}`:c.name])]}/><Btn variant="outline" onClick={()=>setCategory('')}>Clear</Btn></div>
-    {error&&<Notice type="error">{error}</Notice>}{loading?<LoadingCard/>:!items.length?<EmptyState icon="📄" title="No documents found" sub="Upload your first document." action={<Btn variant="gold" onClick={()=>navigate('/documents/new')}>＋ Add Document</Btn>}/>:<TableWrapper><thead><tr><Th>Name</Th><Th>Category</Th><Th>Source</Th><Th>Status</Th><Th>File / URL</Th><Th>Actions</Th></tr></thead><tbody>{items.map((doc,i)=><tr key={doc.id} onClick={()=>navigate(`/documents/${doc.id}`)} style={{cursor:'pointer'}}><Td alt={i%2}><strong style={{color:T.navy}}>{doc.name}</strong><br/><span style={{fontSize:11,color:T.slateLight}}>{doc.description || doc.document_path || '—'}</span></Td><Td alt={i%2}>{doc.category_name || '—'}</Td><Td alt={i%2}>{doc.job_name || doc.freelance_source_name || doc.project_name || 'General'}</Td><Td alt={i%2}><Badge label={boolText(doc.is_active)} color={doc.is_active===false?'slate':'success'}/></Td><Td alt={i%2}><DownloadButton url={getDocumentUrl(doc)} style={{fontSize:11,padding:'5px 10px'}}/></Td><Td alt={i%2}><ActionCell onView={()=>navigate(`/documents/${doc.id}`)} onEdit={()=>navigate(`/documents/${doc.id}/edit`)} onDelete={()=>remove(doc.id)}/></Td></tr>)}</tbody></TableWrapper>}
-  </div>;
+export function DocumentListPage() {
+  const navigate = useNavigate();
+  const boot = useBootstrap();
+  const mobile = useIsMobile();
+
+  const [listOpen, setListOpen] = useState(false);
+  const [category, setCategory] = useState("");
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const categories = boot.documentCategories || [];
+
+  const categoryLabel = (cat) =>
+    cat?.parent_name
+      ? `${cat.parent_name} / ${cat.name}`
+      : cat?.name || "Uncategorized";
+
+  const selectedCategory = categories.find(
+    (c) => String(c.id) === String(category),
+  );
+
+  const loadDocuments = async (categoryId = "") => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const params = categoryId ? { category: categoryId } : {};
+      const data = await api.list(endpoints.documents, params);
+      setDocuments(asList(data));
+    } catch (err) {
+      setError(getErrorMessage(err));
+      setDocuments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openAllDocuments = () => {
+    setCategory("");
+    setListOpen(true);
+    loadDocuments("");
+  };
+
+  const openCategoryDocuments = (categoryId) => {
+    const value = String(categoryId || "");
+    setCategory(value);
+    setListOpen(true);
+    loadDocuments(value);
+  };
+
+  const changeCategory = (value) => {
+    const next = String(value || "");
+    setCategory(next);
+    loadDocuments(next);
+  };
+
+  const backToFolders = () => {
+    setListOpen(false);
+    setCategory("");
+    setDocuments([]);
+    setError("");
+  };
+
+  const remove = async (id) => {
+    if (!confirm("Delete document?")) return;
+    await api.remove(`${endpoints.documents}${id}/`);
+    loadDocuments(category);
+  };
+
+  const folderCard = (key, label, sub, active, onClick) => (
+    <button
+      key={key}
+      type="button"
+      onClick={onClick}
+      style={{
+        textAlign: "left",
+        border: `1px solid ${active ? T.gold : T.border}`,
+        background: active ? T.goldLight : T.white,
+        borderRadius: 12,
+        padding: 14,
+        cursor: "pointer",
+        minHeight: 96,
+        boxShadow: active ? "0 8px 18px rgba(201,168,76,.18)" : "none",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 8,
+        }}
+      >
+        <span style={{ fontSize: 26 }}>{active ? "📂" : "📁"}</span>
+        <strong style={{ color: T.navy, fontSize: 14, lineHeight: 1.25 }}>
+          {label}
+        </strong>
+      </div>
+
+      <div style={{ fontSize: 12, color: T.slateLight }}>{sub}</div>
+    </button>
+  );
+
+  if (!listOpen) {
+    return (
+      <div>
+        <PageHeader
+          title="Documents"
+          sub="Select a folder/category, or open All to view documents"
+          action={
+            <Btn variant="gold" onClick={() => navigate("/documents/new")}>
+              ＋ Add Document
+            </Btn>
+          }
+        />
+
+        <Card>
+          <SectionTitle>Document Folders</SectionTitle>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: mobile
+                ? "1fr"
+                : "repeat(auto-fill,minmax(230px,1fr))",
+              gap: 12,
+            }}
+          >
+            {folderCard(
+              "all",
+              "All Documents",
+              "Click to show all documents",
+              false,
+              openAllDocuments,
+            )}
+
+            {categories.map((cat) =>
+              folderCard(
+                cat.id,
+                categoryLabel(cat),
+                cat.parent_name ? "Sub-folder" : "Category folder",
+                false,
+                () => openCategoryDocuments(cat.id),
+              ),
+            )}
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <PageHeader
+        title={category ? categoryLabel(selectedCategory) : "All Documents"}
+        sub={
+          category
+            ? "Documents filtered by selected folder/category"
+            : "Showing all documents"
+        }
+        action={
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn variant="outline" onClick={backToFolders}>
+              ← Back to Folders
+            </Btn>
+            <Btn variant="gold" onClick={() => navigate("/documents/new")}>
+              ＋ Add Document
+            </Btn>
+          </div>
+        }
+      />
+
+      <Card style={{ marginBottom: 16 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: mobile ? "1fr" : "minmax(260px, 380px) auto",
+            gap: 12,
+            alignItems: "end",
+          }}
+        >
+          <Select
+            label="Filter by Category"
+            value={category}
+            onChange={(e) => changeCategory(e.target.value)}
+            options={[
+              ["", "All Documents"],
+              ...categories.map((cat) => [String(cat.id), categoryLabel(cat)]),
+            ]}
+          />
+
+          <div style={{ fontSize: 12, color: T.slateLight, paddingBottom: 9 }}>
+            {loading
+              ? "Loading documents..."
+              : `${documents.length} document${documents.length === 1 ? "" : "s"} found`}
+          </div>
+        </div>
+      </Card>
+
+      {error && <Notice type="error">{error}</Notice>}
+
+      {loading ? (
+        <LoadingCard />
+      ) : !documents.length ? (
+        <EmptyState
+          icon="📄"
+          title="No documents found"
+          sub={
+            category
+              ? "This selected folder has no documents yet."
+              : "No documents available."
+          }
+          action={
+            <Btn variant="gold" onClick={() => navigate("/documents/new")}>
+              ＋ Add Document
+            </Btn>
+          }
+        />
+      ) : (
+        <TableWrapper>
+          <thead>
+            <tr>
+              <Th>Name</Th>
+              <Th>Category</Th>
+              <Th>Source</Th>
+              <Th>Status</Th>
+              <Th>File / URL</Th>
+              <Th>Actions</Th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {documents.map((doc, i) => (
+              <tr
+                key={doc.id}
+                onClick={() => navigate(`/documents/${doc.id}`)}
+                style={{ cursor: "pointer" }}
+              >
+                <Td alt={i % 2}>
+                  <strong style={{ color: T.navy }}>{doc.name}</strong>
+                  <br />
+                  <span style={{ fontSize: 11, color: T.slateLight }}>
+                    {doc.description || doc.document_path || "—"}
+                  </span>
+                </Td>
+
+                <Td alt={i % 2}>{doc.category_name || "—"}</Td>
+
+                <Td alt={i % 2}>
+                  {doc.job_name ||
+                    doc.freelance_source_name ||
+                    doc.project_name ||
+                    "General"}
+                </Td>
+
+                <Td alt={i % 2}>
+                  <Badge
+                    label={boolText(doc.is_active)}
+                    color={doc.is_active === false ? "slate" : "success"}
+                  />
+                </Td>
+
+                <Td alt={i % 2}>
+                  <DownloadButton
+                    url={getDocumentUrl(doc)}
+                    style={{ fontSize: 11, padding: "5px 10px" }}
+                  />
+                </Td>
+
+                <Td alt={i % 2}>
+                  <ActionCell
+                    onView={() => navigate(`/documents/${doc.id}`)}
+                    onEdit={() => navigate(`/documents/${doc.id}/edit`)}
+                    onDelete={() => remove(doc.id)}
+                  />
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </TableWrapper>
+      )}
+    </div>
+  );
 }
+
 
 export function DocumentDetailPage(){
   const {id}=useParams(); const navigate=useNavigate(); const {item,loading,error}=useApiDetail(`${endpoints.documents}${id}/`,[id]);
@@ -774,29 +1134,292 @@ export function DocumentDetailPage(){
   </div>;
 }
 
-export function DocumentFormPage(){
-  const {id}=useParams(); const edit=Boolean(id); const navigate=useNavigate(); const boot=useBootstrap();
-  const [form,setForm]=useState({name:'',description:'',category:'',job:'',freelance_source:'',project:'',document_file:null,external_url:'',is_active:true});
-  const [loading,setLoading]=useState(edit); const [error,setError]=useState('');
-  useEffect(()=>{ if(!edit) return; setLoading(true); api.get(`${endpoints.documents}${id}/`).then(item=>setForm({...item,category:item.category||'',job:item.job||'',freelance_source:item.freelance_source||'',project:item.project||'',document_file:null,is_active:item.is_active!==false})).catch(e=>setError(getErrorMessage(e))).finally(()=>setLoading(false)); },[id]);
-  const save=async()=>{ const fd=new FormData(); const fields=['name','description','category','job','freelance_source','project','external_url']; fields.forEach(k=>{ if(form[k]!==undefined && form[k]!==null && form[k] !== '') fd.append(k, form[k]); }); fd.append('is_active', form.is_active ? 'true' : 'false'); if(form.document_file instanceof File) fd.append('document_file', form.document_file); if(edit) await api.uploadUpdate(`${endpoints.documents}${id}/`, fd); else await api.upload(endpoints.documents, fd); navigate('/documents'); };
-  if(loading)return <LoadingCard/>;
-  return <WizardForm title={edit?'Edit Document':'Add Document'} back={edit?`/documents/${id}`:'/documents'} save={save} dirty={Boolean(form.name || form.description || form.external_url || form.document_file)}>{error&&<Notice type="error">{error}</Notice>}<FormGrid>
-    <Input label="Name" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
-    <RelationSelect label="Category" value={form.category} onChange={v=>setForm({...form,category:v})} items={boot.documentCategories || []} blank="— Select Category —" />
-    <SourceFields form={form} setForm={setForm} boot={boot}/>
-    <Select label="Active" value={String(form.is_active)} onChange={e=>setForm({...form,is_active:e.target.value==='true'})} options={[[ 'true','Active' ],[ 'false','Inactive' ]]}/>
-    <Textarea label="Description" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
-    <Input label="External URL" value={form.external_url || ''} onChange={e=>setForm({...form,external_url:e.target.value})} placeholder="Optional Google Drive / live link" />
-    <Input label={edit?'Replace Document File':'Document File'} type="file" onChange={e=>setForm({...form,document_file:e.target.files?.[0] || null})}/>
-    {edit && form.document_url && <div><label style={{fontSize:12,fontWeight:600,color:T.slate}}>Current File</label><div style={{marginTop:6}}><DownloadButton url={getDocumentUrl(form)}/></div></div>}
-  </FormGrid></WizardForm>;
+export function DocumentFormPage() {
+  const { id } = useParams();
+  const edit = Boolean(id);
+  const navigate = useNavigate();
+  const boot = useBootstrap();
+
+  const defaultForm = {
+    name: "",
+    description: "",
+    category: "",
+    job: "",
+    freelance_source: "",
+    project: "",
+    document_file: null,
+    external_url: "",
+    is_active: true,
+  };
+
+  const [form, setForm] = useState(defaultForm);
+  const initialFormRef = useRef(dirtyString(defaultForm));
+  const [loading, setLoading] = useState(edit);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!edit) return;
+
+    setLoading(true);
+
+    api
+      .get(`${endpoints.documents}${id}/`)
+      .then((item) => {
+        const next = {
+          ...item,
+          category: item.category || "",
+          job: item.job || "",
+          freelance_source: item.freelance_source || "",
+          project: item.project || "",
+          document_file: null,
+          is_active: item.is_active !== false,
+        };
+
+        initialFormRef.current = dirtyString(next);
+        setForm(next);
+      })
+      .catch((e) => setError(getErrorMessage(e)))
+      .finally(() => setLoading(false));
+  }, [id, edit]);
+
+  const isDirty = dirtyString(form) !== initialFormRef.current;
+
+  const save = async () => {
+    const fd = new FormData();
+    const fields = [
+      "name",
+      "description",
+      "category",
+      "job",
+      "freelance_source",
+      "project",
+      "external_url",
+    ];
+
+    fields.forEach((k) => {
+      if (form[k] !== undefined && form[k] !== null && form[k] !== "") {
+        fd.append(k, form[k]);
+      }
+    });
+
+    fd.append("is_active", form.is_active ? "true" : "false");
+
+    if (form.document_file instanceof File) {
+      fd.append("document_file", form.document_file);
+    }
+
+    if (edit) {
+      await api.uploadUpdate(`${endpoints.documents}${id}/`, fd);
+    } else {
+      await api.upload(endpoints.documents, fd);
+    }
+
+    initialFormRef.current = dirtyString(form);
+    navigate("/documents");
+  };
+
+  if (loading) return <LoadingCard />;
+
+  return (
+    <WizardForm
+      title={edit ? "Edit Document" : "Add Document"}
+      back={edit ? `/documents/${id}` : "/documents"}
+      save={save}
+      dirty={isDirty}
+    >
+      {error && <Notice type="error">{error}</Notice>}
+
+      <FormGrid>
+        <Input
+          label="Name"
+          required
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+        />
+
+        <RelationSelect
+          label="Category"
+          value={form.category}
+          onChange={(v) => setForm({ ...form, category: v })}
+          items={boot.documentCategories || []}
+          blank="— Select Category —"
+        />
+
+        <SourceFields form={form} setForm={setForm} boot={boot} />
+
+        <Select
+          label="Active"
+          value={String(form.is_active)}
+          onChange={(e) =>
+            setForm({ ...form, is_active: e.target.value === "true" })
+          }
+          options={[
+            ["true", "Active"],
+            ["false", "Inactive"],
+          ]}
+        />
+
+        <Textarea
+          label="Description"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+        />
+
+        <Input
+          label="External URL"
+          value={form.external_url || ""}
+          onChange={(e) => setForm({ ...form, external_url: e.target.value })}
+          placeholder="Optional Google Drive / live link"
+        />
+
+        <Input
+          label={edit ? "Replace Document File" : "Document File"}
+          type="file"
+          onChange={(e) =>
+            setForm({ ...form, document_file: e.target.files?.[0] || null })
+          }
+        />
+
+        {edit && form.document_url && (
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: T.slate }}>
+              Current File
+            </label>
+            <div style={{ marginTop: 6 }}>
+              <DownloadButton url={getDocumentUrl(form)} />
+            </div>
+          </div>
+        )}
+      </FormGrid>
+    </WizardForm>
+  );
 }
+
 
 /* Leave */
 export function LeaveListPage(){ const navigate=useNavigate(); const {items,loading,error,reload}=useApiList(endpoints.leave); const remove=async(id)=>{if(!confirm('Delete leave?'))return; await api.remove(`/leave/${id}/`); reload();}; return <ListShell title="Leave / Holiday / Half Day" sub="Calendar/list data from backend" add="＋ Log Leave" onAdd={()=>navigate('/leave/new')} error={error} loading={loading}><TableWrapper><thead><tr><Th>Company</Th><Th>Date</Th><Th>Type</Th><Th>Paid</Th><Th>Deduction</Th><Th>Status</Th><Th>Actions</Th></tr></thead><tbody>{items.map((x,i)=><tr key={x.id}><Td alt={i%2}>{x.company_name}</Td><Td alt={i%2}>{x.date}</Td><Td alt={i%2}>{nice(x.leave_type)}</Td><Td alt={i%2}>{x.is_paid?'Paid':'Unpaid'}</Td><Td alt={i%2}>{money(x.deduction_amount)}</Td><Td alt={i%2}><StatusBadge status={x.status}/></Td><Td alt={i%2}><ActionCell onDelete={()=>remove(x.id)}/></Td></tr>)}</tbody></TableWrapper></ListShell> }
 export function LeaveDetailPage(){ const {id}=useParams(); const {item,loading,error}=useApiDetail(`/leave/${id}/`,[id]); if(loading)return <LoadingCard/>; if(error)return <Notice type="error">{error}</Notice>; return <RecordDetail title={item.title} back="/leave" badges={<><Badge label={nice(item.leave_type)} color="gold"/><StatusBadge status={item.status}/></>} sections={[[ 'Details', [['Company',item.company_name],['Date',item.date],['Reason',item.reason],['Paid',item.is_paid?'Yes':'No'],['Deduction',money(item.deduction_amount)],['Notes',item.notes]] ]]}/> }
-export function AddLeavePage(){ const navigate=useNavigate(); const boot=useBootstrap(); const [form,setForm]=useState({job:'',leave_type:'full_day',date:today(),title:'',reason:'',is_paid:true,deduction_amount:0,status:'approved',notes:'',send_email:false,email_template:'',email_recipients:[]}); const toggle=id=>setForm(f=>({...f,email_recipients:f.email_recipients.map(String).includes(String(id))?f.email_recipients.filter(x=>String(x)!==String(id)):[...f.email_recipients,id]})); const save=async()=>{await api.create(endpoints.leave,form); navigate('/leave');}; return <WizardForm title="Add Leave" back="/leave" save={save}><FormGrid><RelationSelect label="Company / Job" required value={form.job} onChange={v=>setForm({...form,job:v})} items={boot.jobs} labelKey="company_name"/><Select label="Type" value={form.leave_type} onChange={e=>setForm({...form,leave_type:e.target.value})} options={['full_day','half_day','leave','sick_leave','paid_leave','unpaid_leave','week_off','holiday'].map(x=>[x,nice(x)])}/><Input label="Date" type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/><Input label="Title" required value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/><Select label="Paid" value={form.is_paid?'yes':'no'} onChange={e=>setForm({...form,is_paid:e.target.value==='yes'})} options={[[ 'yes','Paid' ],[ 'no','Unpaid' ]]}/><Input label="Deduction Amount" type="number" value={form.deduction_amount} onChange={e=>setForm({...form,deduction_amount:e.target.value})}/><Textarea label="Reason" value={form.reason} onChange={e=>setForm({...form,reason:e.target.value})}/><Textarea label="Notes" value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></FormGrid><div style={{marginTop:14}}><MultiSelectBox label="Email Recipients" selected={form.email_recipients} onToggle={toggle} items={boot.employees}/></div></WizardForm>; }
+export function AddLeavePage() {
+  const navigate = useNavigate();
+  const boot = useBootstrap();
+
+  const defaultForm = {
+    job: "",
+    leave_type: "full_day",
+    date: today(),
+    title: "",
+    reason: "",
+    is_paid: true,
+    deduction_amount: 0,
+    status: "approved",
+    notes: "",
+    send_email: false,
+    email_template: "",
+    email_recipients: [],
+  };
+
+  const [form, setForm] = useState(defaultForm);
+  const initialFormRef = useRef(dirtyString(defaultForm));
+  const isDirty = dirtyString(form) !== initialFormRef.current;
+
+  const toggle = (id) =>
+    setForm((f) => ({
+      ...f,
+      email_recipients: f.email_recipients.map(String).includes(String(id))
+        ? f.email_recipients.filter((x) => String(x) !== String(id))
+        : [...f.email_recipients, id],
+    }));
+
+  const save = async () => {
+    await api.create(endpoints.leave, form);
+    initialFormRef.current = dirtyString(form);
+    navigate("/leave");
+  };
+
+  return (
+    <WizardForm title="Add Leave" back="/leave" save={save} dirty={isDirty}>
+      <FormGrid>
+        <RelationSelect
+          label="Company / Job"
+          required
+          value={form.job}
+          onChange={(v) => setForm({ ...form, job: v })}
+          items={boot.jobs}
+          labelKey="company_name"
+        />
+
+        <Select
+          label="Type"
+          value={form.leave_type}
+          onChange={(e) => setForm({ ...form, leave_type: e.target.value })}
+          options={[
+            "full_day",
+            "half_day",
+            "leave",
+            "sick_leave",
+            "paid_leave",
+            "unpaid_leave",
+            "week_off",
+            "holiday",
+          ].map((x) => [x, nice(x)])}
+        />
+
+        <Input
+          label="Date"
+          type="date"
+          value={form.date}
+          onChange={(e) => setForm({ ...form, date: e.target.value })}
+        />
+        <Input
+          label="Title"
+          required
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+        />
+
+        <Select
+          label="Paid"
+          value={form.is_paid ? "yes" : "no"}
+          onChange={(e) =>
+            setForm({ ...form, is_paid: e.target.value === "yes" })
+          }
+          options={[
+            ["yes", "Paid"],
+            ["no", "Unpaid"],
+          ]}
+        />
+
+        <Input
+          label="Deduction Amount"
+          type="number"
+          value={form.deduction_amount}
+          onChange={(e) =>
+            setForm({ ...form, deduction_amount: e.target.value })
+          }
+        />
+        <Textarea
+          label="Reason"
+          value={form.reason}
+          onChange={(e) => setForm({ ...form, reason: e.target.value })}
+        />
+        <Textarea
+          label="Notes"
+          value={form.notes}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+        />
+      </FormGrid>
+
+      <div style={{ marginTop: 14 }}>
+        <MultiSelectBox
+          label="Email Recipients"
+          selected={form.email_recipients}
+          onToggle={toggle}
+          items={boot.employees}
+        />
+      </div>
+    </WizardForm>
+  );
+}
 
 /* Salary */
 export function SalaryListPage(){ const navigate=useNavigate(); const {items,loading,error}=useApiList(endpoints.salary); const totals=items.reduce((a,x)=>({expected:a.expected+Number(x.expected_amount||0),received:a.received+Number(x.received_amount||0),pending:a.pending+Number(x.pending_amount||0)}),{expected:0,received:0,pending:0}); return <div><PageHeader title="Salary / Payments" sub="Expected vs received vs pending" action={<Btn variant="gold" onClick={()=>navigate('/salary/new')}>＋ Record Salary</Btn>}/><div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:16}}>{[['Expected',totals.expected],['Received',totals.received],['Pending',totals.pending]].map(([k,v])=><Card key={k}><SectionTitle>{k}</SectionTitle><div style={{fontSize:26,fontWeight:900,color:T.navy}}>{money(v)}</div></Card>)}</div>{error&&<Notice type="error">{error}</Notice>}{loading?<LoadingCard/>:<TableWrapper><thead><tr><Th>Month</Th><Th>Source</Th><Th>Expected</Th><Th>Received</Th><Th>Pending</Th><Th>Status</Th><Th>Date</Th></tr></thead><tbody>{items.map((x,i)=><tr key={x.id} onClick={()=>navigate(`/salary/${x.id}`)} style={{cursor:'pointer'}}><Td alt={i%2}>{x.month}</Td><Td alt={i%2}>{sourceText(x)}</Td><Td alt={i%2}>{money(x.expected_amount)}</Td><Td alt={i%2}>{money(x.received_amount)}</Td><Td alt={i%2}>{money(x.pending_amount)}</Td><Td alt={i%2}><StatusBadge status={x.status}/></Td><Td alt={i%2}>{x.received_date||'—'}</Td></tr>)}</tbody></TableWrapper>}</div> }
@@ -968,135 +1591,509 @@ const managementConfigs = {
   'salary-changes': { title:'Salary Changes', path:endpoints.salaryChanges, add:'Add Salary Change', fields:[['job','Job','relation:jobs'],['old_amount','Old Amount','number'],['new_amount','New Amount','number'],['effective_date','Effective Date','date'],['reason','Reason','textarea']] },
   'document-categories': { title:'Document Categories', path:endpoints.documentCategories, add:'Add Document Category', fields:[['name','Name'],['parent','Parent Category','relation:documentCategories'],['description','Description','textarea'],['is_active','Active','boolean']] },
 };export function ManagementPage(){ const {section='jobs'}=useParams(); const config=managementConfigs[section]||managementConfigs.jobs; const boot=useBootstrap(); const {items,loading,error,reload}=useApiList(config.path, {}, [section]); const [open,setOpen]=useState(false); const [editing,setEditing]=useState(null); const remove=async(id)=>{if(!confirm('Delete record?'))return; await api.remove(`${config.path}${id}/`); reload();}; return <div><PageHeader title={config.title} sub="Management setup page" action={<Btn variant="gold" onClick={()=>{setEditing(null);setOpen(true);}}>＋ {config.add}</Btn>}/>{error&&<Notice type="error">{error}</Notice>}{loading?<LoadingCard/>:<TableWrapper><thead><tr><Th>ID</Th><Th>Main</Th><Th>Status/Type</Th><Th>Created</Th><Th>Actions</Th></tr></thead><tbody>{items.map((x,i)=><tr key={x.id}><Td alt={i%2}>{x.id}</Td><Td alt={i%2}><strong style={{color:T.navy}}>{x.company_name||x.name||x.title||x.subject||x.host||x.new_designation||`Record ${x.id}`}</strong><br/><span style={{fontSize:11,color:T.slateLight}}>{x.job_title||x.email||x.description||x.notes||''}</span></Td><Td alt={i%2}>{x.status?<StatusBadge status={x.status}/>:<Badge label={x.member_type||x.source_type||x.code||'Active'} color="navy"/>}</Td><Td alt={i%2}>{x.created_at||'—'}</Td><Td alt={i%2}><ActionCell onEdit={()=>{setEditing(x);setOpen(true);}} onDelete={()=>remove(x.id)}/></Td></tr>)}</tbody></TableWrapper>}<CrudModal open={open} onClose={()=>setOpen(false)} config={config} item={editing} boot={boot} onSaved={()=>{setOpen(false);reload();}} /></div>; }
-function CrudModal({open,onClose,config,item,boot,onSaved}){
-  const [form,setForm]=useState({});
-  const [error,setError]=useState('');
-  useEffect(()=>{
-    const defaults = { working_days: defaultWorkingDays };
-    if(config.title==='Freelancing Sources') Object.assign(defaults, { platform:'direct', status:'active', default_billing_type:'project_wise', payment_due_day:5 });
-    if(config.title==='Projects') Object.assign(defaults, { source_type:'job', status:'active', billing_type:'manual', billing_amount:0 });
-    if(config.title==='Employees / Members') Object.assign(defaults, { source_type:'manual', member_type:'employee' });
-    if(config.title==='Jobs') Object.assign(defaults, { status:'active', salary_cycle_start_day:1, salary_cycle_end_day:31, salary_received_day:7, working_days: defaultWorkingDays });
-    if(config.title==='Email Variables') Object.assign(defaults, { category:'custom', is_required:false, is_active:true });
-    if(config.title==='Document Categories') Object.assign(defaults, { parent:'', description:'', is_active:true });
-    setForm(item ? {...item} : defaults);
-    setError('');
-  },[item,open,config.title]);
-  useEffect(()=>{ if(open && ['Projects', 'Email Templates', 'Employees / Members', 'Email Variables', 'Document Categories'].includes(config.title)) boot.reloadBootstrap?.(); },[open, config.title]);
-  useEffect(()=>{ if(config.title === 'Email Templates') boot.reloadBootstrap?.(); },[config.title]);
+function CrudModal({ open, onClose, config, item, boot, onSaved }) {
+  const [form, setForm] = useState({});
+  const initialFormRef = useRef(dirtyString({}));
+  const [error, setError] = useState("");
 
-  const set=(k,v)=>{
-    if(['Projects', 'Employees / Members'].includes(config.title) && k==='source_type' && v==='freelancing') boot.reloadBootstrap?.();
-    setForm(f=>{
-      const next={...f,[k]:v};
-      if(config.title==='Projects' && k==='source_type'){
-        if(v==='job') { next.freelance_source=''; next.manual_source_name=''; next.billing_type='manual'; next.billing_amount=0; }
-        if(v==='freelancing') { next.job=''; next.manual_source_name=''; if(!next.billing_type || next.billing_type==='manual') next.billing_type='fixed_project'; }
-        if(v==='manual') { next.job=''; next.freelance_source=''; next.billing_type='manual'; next.billing_amount=0; }
+  useEffect(() => {
+    const defaults = { working_days: defaultWorkingDays };
+
+    if (config.title === "Freelancing Sources") {
+      Object.assign(defaults, {
+        platform: "direct",
+        status: "active",
+        default_billing_type: "project_wise",
+        payment_due_day: 5,
+      });
+    }
+
+    if (config.title === "Projects") {
+      Object.assign(defaults, {
+        source_type: "job",
+        status: "active",
+        billing_type: "manual",
+        billing_amount: 0,
+      });
+    }
+
+    if (config.title === "Employees / Members") {
+      Object.assign(defaults, {
+        source_type: "manual",
+        member_type: "employee",
+      });
+    }
+
+    if (config.title === "Jobs") {
+      Object.assign(defaults, {
+        status: "active",
+        salary_cycle_start_day: 1,
+        salary_cycle_end_day: 31,
+        salary_received_day: 7,
+        working_days: defaultWorkingDays,
+      });
+    }
+
+    if (config.title === "Email Variables") {
+      Object.assign(defaults, {
+        category: "custom",
+        is_required: false,
+        is_active: true,
+      });
+    }
+
+    if (config.title === "Document Categories") {
+      Object.assign(defaults, {
+        parent: "",
+        description: "",
+        is_active: true,
+      });
+    }
+
+    const next = item ? { ...item } : defaults;
+
+    initialFormRef.current = dirtyString(next);
+    setForm(next);
+    setError("");
+  }, [item, open, config.title]);
+
+  useEffect(() => {
+    if (
+      open &&
+      [
+        "Projects",
+        "Email Templates",
+        "Employees / Members",
+        "Email Variables",
+        "Document Categories",
+      ].includes(config.title)
+    ) {
+      boot.reloadBootstrap?.();
+    }
+  }, [open, config.title]);
+
+  useEffect(() => {
+    if (config.title === "Email Templates") {
+      boot.reloadBootstrap?.();
+    }
+  }, [config.title]);
+
+  const isDirty = open && dirtyString(form) !== initialFormRef.current;
+
+  useUnsavedPrompt(Boolean(isDirty));
+
+  const guardedClose = () => {
+    if (confirmUnsaved(Boolean(isDirty))) {
+      onClose();
+    }
+  };
+
+  const set = (k, v) => {
+    if (
+      ["Projects", "Employees / Members"].includes(config.title) &&
+      k === "source_type" &&
+      v === "freelancing"
+    ) {
+      boot.reloadBootstrap?.();
+    }
+
+    setForm((f) => {
+      const next = { ...f, [k]: v };
+
+      if (config.title === "Projects" && k === "source_type") {
+        if (v === "job") {
+          next.freelance_source = "";
+          next.manual_source_name = "";
+          next.billing_type = "manual";
+          next.billing_amount = 0;
+        }
+
+        if (v === "freelancing") {
+          next.job = "";
+          next.manual_source_name = "";
+          if (!next.billing_type || next.billing_type === "manual") {
+            next.billing_type = "fixed_project";
+          }
+        }
+
+        if (v === "manual") {
+          next.job = "";
+          next.freelance_source = "";
+          next.billing_type = "manual";
+          next.billing_amount = 0;
+        }
       }
-      if(config.title==='Employees / Members' && k==='source_type'){
-        if(v==='job') { next.freelance_source=''; next.company=''; }
-        if(v==='freelancing') { next.job=''; next.company=''; }
-        if(v==='manual') { next.job=''; next.freelance_source=''; }
+
+      if (config.title === "Employees / Members" && k === "source_type") {
+        if (v === "job") {
+          next.freelance_source = "";
+          next.company = "";
+        }
+
+        if (v === "freelancing") {
+          next.job = "";
+          next.company = "";
+        }
+
+        if (v === "manual") {
+          next.job = "";
+          next.freelance_source = "";
+        }
       }
-      if(k==='default_billing_type' && v!=='monthly') next.default_monthly_amount=0;
+
+      if (k === "default_billing_type" && v !== "monthly") {
+        next.default_monthly_amount = 0;
+      }
+
       return next;
     });
   };
 
-  const relationItems=(key)=> key==='jobs'?boot.jobs:key==='sources'?boot.sources:key==='emailTypes'?boot.emailTypes:key==='documentCategories'?boot.documentCategories:[];
+  const relationItems = (key) =>
+    key === "jobs"
+      ? boot.jobs
+      : key === "sources"
+        ? boot.sources
+        : key === "emailTypes"
+          ? boot.emailTypes
+          : key === "documentCategories"
+            ? boot.documentCategories
+            : [];
 
-  const shouldShowField=(name)=>{
-    if(config.title==='Projects'){
-      const type=form.source_type || 'job';
-      if(name==='job') return type==='job';
-      if(name==='freelance_source') return type==='freelancing';
-      if(name==='manual_source_name') return type==='manual';
-      if(['billing_type','billing_amount','payment_due_day'].includes(name)) return type==='freelancing';
+  const shouldShowField = (name) => {
+    if (config.title === "Projects") {
+      const type = form.source_type || "job";
+
+      if (name === "job") return type === "job";
+      if (name === "freelance_source") return type === "freelancing";
+      if (name === "manual_source_name") return type === "manual";
+      if (["billing_type", "billing_amount", "payment_due_day"].includes(name))
+        return type === "freelancing";
     }
-    if(config.title==='Freelancing Sources'){
-      if(name==='default_monthly_amount') return form.default_billing_type === 'monthly';
+
+    if (config.title === "Freelancing Sources") {
+      if (name === "default_monthly_amount")
+        return form.default_billing_type === "monthly";
     }
-    if(config.title==='Employees / Members'){
-      const type=form.source_type || 'manual';
-      if(name==='job') return type==='job';
-      if(name==='freelance_source') return type==='freelancing';
-      if(name==='company') return type==='manual';
+
+    if (config.title === "Employees / Members") {
+      const type = form.source_type || "manual";
+
+      if (name === "job") return type === "job";
+      if (name === "freelance_source") return type === "freelancing";
+      if (name === "company") return type === "manual";
     }
+
     return true;
   };
 
-  const cleanedPayload=()=>{
-    const data={...form};
-    if(config.title==='Projects'){
-      if(data.source_type==='job'){
-        data.freelance_source=null; data.manual_source_name=''; data.billing_type='manual'; data.billing_amount=0; data.payment_due_day=null;
-      } else if(data.source_type==='freelancing'){
-        data.job=null; data.manual_source_name='';
-      } else if(data.source_type==='manual'){
-        data.job=null; data.freelance_source=null; data.billing_type='manual'; data.billing_amount=0; data.payment_due_day=null;
+  const cleanedPayload = () => {
+    const data = { ...form };
+
+    if (config.title === "Projects") {
+      if (data.source_type === "job") {
+        data.freelance_source = null;
+        data.manual_source_name = "";
+        data.billing_type = "manual";
+        data.billing_amount = 0;
+        data.payment_due_day = null;
+      } else if (data.source_type === "freelancing") {
+        data.job = null;
+        data.manual_source_name = "";
+      } else if (data.source_type === "manual") {
+        data.job = null;
+        data.freelance_source = null;
+        data.billing_type = "manual";
+        data.billing_amount = 0;
+        data.payment_due_day = null;
       }
     }
-    if(config.title==='Freelancing Sources'){ if(data.default_billing_type !== 'monthly') data.default_monthly_amount=0; if(data.default_monthly_amount===''||data.default_monthly_amount===null||data.default_monthly_amount===undefined) data.default_monthly_amount=0; }
-    if(config.title==='Email Templates') {
+
+    if (config.title === "Freelancing Sources") {
+      if (data.default_billing_type !== "monthly") {
+        data.default_monthly_amount = 0;
+      }
+
+      if (
+        data.default_monthly_amount === "" ||
+        data.default_monthly_amount === null ||
+        data.default_monthly_amount === undefined
+      ) {
+        data.default_monthly_amount = 0;
+      }
+    }
+
+    if (config.title === "Email Templates") {
       const explicit = parseVariablesCsv(data.available_variables);
       const fromText = extractTemplateVariables(data.subject, data.body);
-      data.available_variables = Array.from(new Set([...fromText, ...explicit]));
+      data.available_variables = Array.from(
+        new Set([...fromText, ...explicit]),
+      );
     }
-    if(config.title==='Employees / Members'){
-      const type=data.source_type || 'manual';
-      if(type==='job'){ data.freelance_source=null; data.company=''; }
-      if(type==='freelancing'){ data.job=null; data.company=''; }
-      if(type==='manual'){ data.job=null; data.freelance_source=null; }
+
+    if (config.title === "Employees / Members") {
+      const type = data.source_type || "manual";
+
+      if (type === "job") {
+        data.freelance_source = null;
+        data.company = "";
+      }
+
+      if (type === "freelancing") {
+        data.job = null;
+        data.company = "";
+      }
+
+      if (type === "manual") {
+        data.job = null;
+        data.freelance_source = null;
+      }
     }
-    if(config.title==='Jobs') data.working_days = (data.working_days || defaultWorkingDays).map(Number);
-    if(config.title==='Email Variables') {
-      data.key = String(data.key || '').trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
-      data.is_required = data.is_required === true || data.is_required === 'true';
-      data.is_active = data.is_active === true || data.is_active === 'true';
+
+    if (config.title === "Jobs") {
+      data.working_days = (data.working_days || defaultWorkingDays).map(Number);
     }
-    if(config.title==='Document Categories') {
-      if(data.parent === '') data.parent = null;
-      data.is_active = data.is_active === true || data.is_active === 'true';
+
+    if (config.title === "Email Variables") {
+      data.key = String(data.key || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+
+      data.is_required =
+        data.is_required === true || data.is_required === "true";
+      data.is_active = data.is_active === true || data.is_active === "true";
     }
+
+    if (config.title === "Document Categories") {
+      if (data.parent === "") {
+        data.parent = null;
+      }
+
+      data.is_active = data.is_active === true || data.is_active === "true";
+    }
+
     return data;
   };
 
-  const save=async()=>{
-    try{
-      const payload=cleanedPayload();
-      if(config.title==='Attachments' && payload.file instanceof File){
-        const fd=new FormData();
-        Object.entries(payload).forEach(([k,v])=>{ if(v!==undefined&&v!==null) fd.append(k,v); });
-        if(item?.id) await api.update(`${config.path}${item.id}/`,payload); else await api.upload(config.path,fd);
-      } else if(item?.id) await api.update(`${config.path}${item.id}/`,payload); else await api.create(config.path,payload);
+  const save = async () => {
+    try {
+      const payload = cleanedPayload();
+
+      if (config.title === "Attachments" && payload.file instanceof File) {
+        const fd = new FormData();
+
+        Object.entries(payload).forEach(([k, v]) => {
+          if (v !== undefined && v !== null) {
+            fd.append(k, v);
+          }
+        });
+
+        if (item?.id) {
+          await api.update(`${config.path}${item.id}/`, payload);
+        } else {
+          await api.upload(config.path, fd);
+        }
+      } else if (item?.id) {
+        await api.update(`${config.path}${item.id}/`, payload);
+      } else {
+        await api.create(config.path, payload);
+      }
+
+      initialFormRef.current = dirtyString(form);
       onSaved();
-    }catch(err){setError(getErrorMessage(err));}
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
   };
 
-  return <Modal open={open} onClose={onClose} title={item?'Edit Record':config.add} width={760}>{error&&<Notice type="error">{error}</Notice>}
-    {config.title==='Employees / Members' && <Notice type="info">Select whether this member belongs to a Job, Freelancing Source, or Manual/Other source. This keeps task, meeting and email selection cleaner.</Notice>}
-    {config.title==='Email Templates' && <Notice type="info">{'Drag or click variables into the body. Variables written as {name} or {{name}} are asked while sending. Line breaks are kept exactly as typed.'}</Notice>}
-    {config.title==='Email Variables' && <Notice type="info">Create reusable variables once, then use them in Email Templates by drag/drop. Example key: project_name creates placeholder {project_name}.</Notice>}
-    <FormGrid>{config.fields.filter(([name])=>shouldShowField(name)).map(([name,label,type='text',opts])=>{
-      if(type==='textarea')return <Textarea key={name} label={label} value={form[name]||''} onChange={e=>set(name,e.target.value)}/>;
-      if(type==='template-body')return <EmailTemplateBodyBuilder key={name} label={label} value={form[name]||''} onChange={v=>set(name,v)} variables={boot.emailVariables || []} onCreated={async(v)=>{ await api.create(endpoints.emailVariables, v); await boot.reloadBootstrap?.(); }}/>;
-      if(type==='file')return <Input key={name} label={label} type="file" onChange={e=>set(name,e.target.files?.[0])}/>;
-      if(type==='working-days')return <WorkingDaysPicker key={name} label={label} value={form[name]||defaultWorkingDays} onChange={v=>set(name,v)}/>;
-      if(type==='variables')return <Input key={name} label={label} value={Array.isArray(form[name])?form[name].join(', '):(form[name]||'')} onChange={e=>set(name,e.target.value)} placeholder="optional: manager_name, reason"/>;
-      if(type==='boolean')return <Select key={name} label={label} value={String(form[name] ?? true)} onChange={e=>set(name,e.target.value === 'true')} options={[[ 'true','Yes' ],[ 'false','No' ]]}/>;
-      if(type?.startsWith?.('relation:')){
-        const rel=type.split(':')[1];
-        const items=relationItems(rel);
-        const blank = rel==='sources' && items.length===0 ? 'Create Freelancing Source first' : rel==='documentCategories' ? '— Root Category —' : '— Select —';
-        const filteredItems = config.title==='Document Categories' && item?.id ? items.filter(x=>String(x.id)!==String(item.id)) : items;
-        return <RelationSelect key={name} label={label} value={form[name]||''} onChange={v=>set(name,v)} items={filteredItems} labelKey={rel==='jobs'?'company_name':'name'} blank={blank}/>;
-      }
-      if(type==='select')return <Select key={name} label={label} value={form[name]||''} onChange={e=>set(name,e.target.value)} options={[[ '', '— Select —' ],...opts]}/>;
-      return <Input key={name} label={label} type={type} value={form[name]||''} onChange={e=>set(name,e.target.value)}/>;
-    })}</FormGrid>
-    <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:18}}><Btn variant="outline" onClick={onClose}>Cancel</Btn><Btn variant="gold" onClick={save}>Save</Btn></div>
-  </Modal>;
+  return (
+    <Modal
+      open={open}
+      onClose={guardedClose}
+      title={item ? "Edit Record" : config.add}
+      width={760}
+    >
+      {error && <Notice type="error">{error}</Notice>}
+
+      {config.title === "Employees / Members" && (
+        <Notice type="info">
+          Select whether this member belongs to a Job, Freelancing Source, or
+          Manual/Other source. This keeps task, meeting and email selection
+          cleaner.
+        </Notice>
+      )}
+
+      {config.title === "Email Templates" && (
+        <Notice type="info">
+          {
+            "Drag or click variables into the body. Variables written as {name} or {{name}} are asked while sending. Line breaks are kept exactly as typed."
+          }
+        </Notice>
+      )}
+
+      {config.title === "Email Variables" && (
+        <Notice type="info">
+          {
+            "Create reusable variables once, then use them in Email Templates by drag/drop. Example key: project_name creates placeholder {project_name}."
+          }
+        </Notice>
+      )}
+
+      <FormGrid>
+        {config.fields
+          .filter(([name]) => shouldShowField(name))
+          .map(([name, label, type = "text", opts]) => {
+            if (type === "textarea") {
+              return (
+                <Textarea
+                  key={name}
+                  label={label}
+                  value={form[name] || ""}
+                  onChange={(e) => set(name, e.target.value)}
+                />
+              );
+            }
+
+            if (type === "template-body") {
+              return (
+                <EmailTemplateBodyBuilder
+                  key={name}
+                  label={label}
+                  value={form[name] || ""}
+                  onChange={(v) => set(name, v)}
+                  variables={boot.emailVariables || []}
+                  onCreated={async (v) => {
+                    await api.create(endpoints.emailVariables, v);
+                    await boot.reloadBootstrap?.();
+                  }}
+                />
+              );
+            }
+
+            if (type === "file") {
+              return (
+                <Input
+                  key={name}
+                  label={label}
+                  type="file"
+                  onChange={(e) => set(name, e.target.files?.[0])}
+                />
+              );
+            }
+
+            if (type === "working-days") {
+              return (
+                <WorkingDaysPicker
+                  key={name}
+                  label={label}
+                  value={form[name] || defaultWorkingDays}
+                  onChange={(v) => set(name, v)}
+                />
+              );
+            }
+
+            if (type === "variables") {
+              return (
+                <Input
+                  key={name}
+                  label={label}
+                  value={
+                    Array.isArray(form[name])
+                      ? form[name].join(", ")
+                      : form[name] || ""
+                  }
+                  onChange={(e) => set(name, e.target.value)}
+                  placeholder="optional: manager_name, reason"
+                />
+              );
+            }
+
+            if (type === "boolean") {
+              return (
+                <Select
+                  key={name}
+                  label={label}
+                  value={String(form[name] ?? true)}
+                  onChange={(e) => set(name, e.target.value === "true")}
+                  options={[
+                    ["true", "Yes"],
+                    ["false", "No"],
+                  ]}
+                />
+              );
+            }
+
+            if (type?.startsWith?.("relation:")) {
+              const rel = type.split(":")[1];
+              const items = relationItems(rel);
+              const blank =
+                rel === "sources" && items.length === 0
+                  ? "Create Freelancing Source first"
+                  : rel === "documentCategories"
+                    ? "— Root Category —"
+                    : "— Select —";
+
+              const filteredItems =
+                config.title === "Document Categories" && item?.id
+                  ? items.filter((x) => String(x.id) !== String(item.id))
+                  : items;
+
+              return (
+                <RelationSelect
+                  key={name}
+                  label={label}
+                  value={form[name] || ""}
+                  onChange={(v) => set(name, v)}
+                  items={filteredItems}
+                  labelKey={rel === "jobs" ? "company_name" : "name"}
+                  blank={blank}
+                />
+              );
+            }
+
+            if (type === "select") {
+              return (
+                <Select
+                  key={name}
+                  label={label}
+                  value={form[name] || ""}
+                  onChange={(e) => set(name, e.target.value)}
+                  options={[["", "— Select —"], ...opts]}
+                />
+              );
+            }
+
+            return (
+              <Input
+                key={name}
+                label={label}
+                type={type}
+                value={form[name] || ""}
+                onChange={(e) => set(name, e.target.value)}
+              />
+            );
+          })}
+      </FormGrid>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 8,
+          marginTop: 18,
+        }}
+      >
+        <Btn variant="outline" onClick={guardedClose}>
+          Cancel
+        </Btn>
+        <Btn variant="gold" onClick={save}>
+          Save
+        </Btn>
+      </div>
+    </Modal>
+  );
 }
 
 function EmailTemplateBodyBuilder({ label, value, onChange, variables = [], onCreated }){
