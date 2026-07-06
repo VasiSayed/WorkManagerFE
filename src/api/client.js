@@ -171,6 +171,13 @@ export const endpoints = {
   documents: "/documents/",
   documentCategories: "/document-categories/",
   attachments: "/management/attachments/",
+  socialUsers: "/social/users/",
+  socialUserSearch: "/social/users/search/",
+  socialInvitations: "/social/invitations/",
+  socialBlocks: "/social/blocks/",
+  socialReviews: "/social/reviews/",
+  socialConversations: "/social/conversations/",
+  socialNotifications: "/social/notifications/",
 };
 
 export function getErrorMessage(err) {

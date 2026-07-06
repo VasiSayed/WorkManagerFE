@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { T } from './theme';
+import { ChatPage, SocialPage, SocialProfilePage } from './pages/social/Social';
 import { ForgotPasswordPage, LoginPage, RegisterPage, ResetPasswordPage } from './pages/Auth';
 import {
   AddLeavePage,
@@ -92,6 +93,11 @@ function App() {
         <Route path="/emails" element={<ProtectedLayout><EmailListPage /></ProtectedLayout>} />
         <Route path="/emails/new" element={<ProtectedLayout><SendEmailPage /></ProtectedLayout>} />
         <Route path="/emails/:id" element={<ProtectedLayout><EmailDetailPage /></ProtectedLayout>} />
+
+        <Route path="/social" element={<ProtectedLayout><SocialPage /></ProtectedLayout>} />
+        <Route path="/social/users/:id" element={<ProtectedLayout><SocialProfilePage /></ProtectedLayout>} />
+        <Route path="/chat" element={<ProtectedLayout><ChatPage /></ProtectedLayout>} />
+        <Route path="/chat/:id" element={<ProtectedLayout><ChatPage /></ProtectedLayout>} />
 
         <Route path="/reports" element={<ProtectedLayout><ReportsPage /></ProtectedLayout>} />
         <Route path="/reports/:category" element={<ProtectedLayout><ReportsPage /></ProtectedLayout>} />
