@@ -110,8 +110,8 @@ export function parseActionItems(raw) {
     .filter(Boolean)
     .map(text => {
       const lower = text.toLowerCase();
-      const done = /\b(done|completed|closed)\b/.test(lower) || /\[(done|completed|closed|x|✓)\]/i.test(text);
-      text = text.replace(/\s*\[(done|completed|closed|x|✓|todo|pending)\]\s*$/i, '').trim();
+      const done = /\b(done|completed|closed)\b/.test(lower) || /\[(done|completed|closed|x|\u2713)\]/i.test(text);
+      text = text.replace(/\s*\[(done|completed|closed|x|\u2713|todo|pending)\]\s*$/i, '').trim();
       return { text, done };
     });
 }

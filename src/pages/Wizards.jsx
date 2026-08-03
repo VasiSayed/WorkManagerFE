@@ -4,6 +4,7 @@ import { T } from '../theme';
 import { parseNotepadMulti } from '../utils/parser';
 import { WizardBar, SelectCard, SourceCard, Card, Btn, Badge, StatusBadge, Modal, Input, Textarea, Select, MomNotepadModal } from '../components/UI';
 import { mockEmployees } from '../data/mockData';
+import { Icon } from '../components/Icons';
 
 /* ══════════════════════════════════════════════════════════
    ADD MEETING WIZARD  /meetings/new?step=0-6
@@ -22,9 +23,9 @@ export function AddMeeting() {
 
   const STEPS = ['Type', 'Source', 'Project', 'Details', 'Members', 'MOM', 'Review'];
   const srcList = sel.type === 'job'
-    ? [{ id: 1, name: 'TechCorp Solutions', sub: 'Senior Dev', icon: '🏢' }]
+    ? [{ id: 1, name: 'TechCorp Solutions', sub: 'Senior Dev', icon: 'building' }]
     : sel.type === 'freelancing'
-    ? [{ id: 1, name: 'FreelanceHub', sub: 'Aakash Mehta', icon: '💻' }, { id: 2, name: 'ClientCo', sub: 'Sunita Kapoor', icon: '🎨' }]
+    ? [{ id: 1, name: 'FreelanceHub', sub: 'Aakash Mehta', icon: 'briefcase' }, { id: 2, name: 'ClientCo', sub: 'Sunita Kapoor', icon: 'image' }]
     : [];
   const prjList = sel.type === 'job'
     ? [{ id: 1, name: 'Payroll System' }, { id: 2, name: 'Task Manager' }]
@@ -50,7 +51,7 @@ export function AddMeeting() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <Btn variant="outline" onClick={() => navigate('/meetings')} style={{ padding: '6px 12px', fontSize: 12 }}>← Back</Btn>
         <h1 style={{ fontSize: 20, fontWeight: 800, color: T.navy }}>Add Meeting</h1>
-        {sel.type && <Badge label={sel.type === 'job' ? '🏢 Job' : sel.type === 'freelancing' ? '💻 Freelance' : '🌐 General'} color="navy" />}
+        {sel.type && <Badge label={sel.type === 'job' ? 'Job' : sel.type === 'freelancing' ? 'Freelance' : 'General'} color="navy" />}
       </div>
 
       <Card style={{ maxWidth: 860 }}>
@@ -61,7 +62,7 @@ export function AddMeeting() {
             <h2 style={{ fontSize: 15, fontWeight: 700, color: T.navy, marginBottom: 4 }}>What type of meeting?</h2>
             <p style={{ fontSize: 12, color: T.slateLight, marginBottom: 20 }}>Click a card to select and auto-advance</p>
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-              {[['🏢','Job Meeting','Related to your employment','job'],['💻','Freelancing','Client project meeting','freelancing'],['🌐','General','Team or internal','general'],['✏️','Manual','No specific source','manual']].map(([ic, lb, sub, v]) => (
+              {[['building','Job Meeting','Related to your employment','job'],['briefcase','Freelancing','Client project meeting','freelancing'],['users','General','Team or internal','general'],['edit','Manual','No specific source','manual']].map(([ic, lb, sub, v]) => (
                 <SelectCard key={v} icon={ic} label={lb} sub={sub} selected={sel.type === v}
                   onClick={() => { setSel({ type: v, source: null, project: null }); setTimeout(() => go(['general','manual'].includes(v) ? 3 : 1), 160); }} />
               ))}
@@ -90,13 +91,13 @@ export function AddMeeting() {
                   style={{ border: `2px solid ${sel.project === pr.id ? T.gold : T.border}`, borderRadius: 10, padding: '14px 20px', cursor: 'pointer', background: sel.project === pr.id ? T.goldLight : T.white, display: 'flex', alignItems: 'center', gap: 10, transition: 'all .15s' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = T.gold; e.currentTarget.style.background = T.goldLight; }}
                   onMouseLeave={e => { if (sel.project !== pr.id) { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.white; } }}>
-                  <span style={{ fontSize: 18 }}>📁</span>
+                  <Icon name="folder" size={18} />
                   <div style={{ fontWeight: 600, color: T.navy, fontSize: 13 }}>{pr.name}</div>
                   <span style={{ fontSize: 11, color: T.gold, marginLeft: 'auto', fontWeight: 600 }}>→</span>
                 </div>
               ))}
               <div onClick={() => go(3)} style={{ border: `2px dashed ${T.border}`, borderRadius: 10, padding: '14px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: T.slateLight }}>
-                <span style={{ fontSize: 18 }}>🚫</span> No Project
+                <Icon name="x" size={18} /> No Project
               </div>
             </div>
             <Btn variant="outline" onClick={() => go(1)}>← Back</Btn>
@@ -145,7 +146,7 @@ export function AddMeeting() {
                 return (
                   <div key={e.id} onClick={() => toggleMember(e.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: i < mockEmployees.length - 1 ? `1px solid ${T.border}` : 'none', background: checked ? T.goldLight : T.white, cursor: 'pointer', transition: 'all .12s' }}>
                     <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${checked ? T.gold : T.border}`, background: checked ? T.gold : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {checked && <span style={{ color: T.white, fontSize: 11, fontWeight: 700 }}>✓</span>}
+                      {checked && <Icon name="check" size={12} />}
                     </div>
                     <div style={{ width: 34, height: 34, borderRadius: '50%', background: T.navyTint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: T.navy, flexShrink: 0 }}>
                       {e.name.split(' ').map(n => n[0]).join('')}
@@ -163,7 +164,7 @@ export function AddMeeting() {
                 );
               })}
             </div>
-            {members.length > 0 && <div style={{ marginTop: 10, fontSize: 12, color: T.success, fontWeight: 500 }}>✓ {members.length} member{members.length > 1 ? 's' : ''} selected</div>}
+            {members.length > 0 && <div style={{ marginTop: 10, fontSize: 12, color: T.success, fontWeight: 500 }}><Icon name="check" size={13} /> {members.length} member{members.length > 1 ? 's' : ''} selected</div>}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
               <Btn variant="outline" onClick={() => go(3)}>← Back</Btn>
               <Btn variant="gold" onClick={() => go(5)}>Next →</Btn>
@@ -179,13 +180,13 @@ export function AddMeeting() {
                 <p style={{ fontSize: 12, color: T.slateLight, marginTop: 2 }}>Optional — can be filled after the meeting</p>
               </div>
               <Btn variant="gold" onClick={() => setMomNotepadOpen(true)} style={{ fontSize: 12, padding: '6px 14px' }}>
-                📝 Notepad Import
+                <Icon name="note" size={14} /> Notepad Import
               </Btn>
             </div>
 
             {/* hint */}
             <div style={{ padding: '9px 14px', background: T.goldLight, borderRadius: 8, border: `1px solid #EDD590`, margin: '14px 0', fontSize: 12, color: T.goldDark, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 15 }}>💡</span>
+              <Icon name="info" size={15} />
               <span>Click <strong>Notepad Import</strong> to paste raw notes — sections like <code style={{ fontFamily: 'monospace', background: 'rgba(0,0,0,.06)', padding: '1px 5px', borderRadius: 3 }}>MOM:</code>, <code style={{ fontFamily: 'monospace', background: 'rgba(0,0,0,.06)', padding: '1px 5px', borderRadius: 3 }}>Conclusion:</code>, <code style={{ fontFamily: 'monospace', background: 'rgba(0,0,0,.06)', padding: '1px 5px', borderRadius: 3 }}>Action:</code> are auto-detected.</span>
             </div>
 
@@ -194,7 +195,7 @@ export function AddMeeting() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: T.slate }}>MOM / Discussion Notes</label>
-                  {mom.mom && <span style={{ fontSize: 11, color: T.success, fontWeight: 500 }}>✓ Filled</span>}
+                  {mom.mom && <span style={{ fontSize: 11, color: T.success, fontWeight: 500 }}><Icon name="check" size={12} /> Filled</span>}
                 </div>
                 <textarea value={mom.mom} onChange={e => setMom({ ...mom, mom: e.target.value })} rows={5}
                   placeholder={'• Discussed sprint goals and velocity metrics\n• Login bug assigned to Rahul, deadline Friday\n• API design review scheduled for Thursday'}
@@ -206,7 +207,7 @@ export function AddMeeting() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: T.slate }}>Conclusion</label>
-                  {mom.conclusion && <span style={{ fontSize: 11, color: T.success, fontWeight: 500 }}>✓ Filled</span>}
+                  {mom.conclusion && <span style={{ fontSize: 11, color: T.success, fontWeight: 500 }}><Icon name="check" size={12} /> Filled</span>}
                 </div>
                 <textarea value={mom.conclusion} onChange={e => setMom({ ...mom, conclusion: e.target.value })} rows={3}
                   placeholder="Key decisions made in this meeting..."
@@ -218,7 +219,7 @@ export function AddMeeting() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: T.slate }}>Next Actions</label>
-                  {mom.next_action && <span style={{ fontSize: 11, color: T.success, fontWeight: 500 }}>✓ Filled</span>}
+                  {mom.next_action && <span style={{ fontSize: 11, color: T.success, fontWeight: 500 }}><Icon name="check" size={12} /> Filled</span>}
                 </div>
                 <textarea value={mom.next_action} onChange={e => setMom({ ...mom, next_action: e.target.value })} rows={3}
                   placeholder={'• Rahul: fix login bug by Friday\n• Priya: update API documentation\n• Dev: create new mockups'}
@@ -230,7 +231,7 @@ export function AddMeeting() {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
               <Btn variant="outline" onClick={() => go(4)}>← Back</Btn>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <Btn variant="outline" onClick={() => setMomNotepadOpen(true)} style={{ fontSize: 12 }}>📝 Notepad Import</Btn>
+                <Btn variant="outline" onClick={() => setMomNotepadOpen(true)} style={{ fontSize: 12 }}><Icon name="note" size={14} /> Notepad Import</Btn>
                 <Btn variant="gold" onClick={() => go(6)}>Next →</Btn>
               </div>
             </div>
@@ -249,13 +250,13 @@ export function AddMeeting() {
               ))}
             </div>
             <div style={{ padding: '12px 16px', borderRadius: 10, background: T.successBg, border: '1px solid #B7DFD0', marginBottom: 20, fontSize: 13, color: T.success }}>
-              ✅ Meeting ready to save
+              <Icon name="check" size={15} /> Meeting ready to save
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Btn variant="outline" onClick={() => go(5)}>← Back</Btn>
               <div style={{ display: 'flex', gap: 10 }}>
                 <Btn variant="outline" onClick={() => navigate('/meetings')}>Cancel</Btn>
-                <Btn variant="gold" onClick={() => navigate('/meetings')}>✓ Save Meeting</Btn>
+                <Btn variant="gold" onClick={() => navigate('/meetings')}><Icon name="check" size={14} /> Save Meeting</Btn>
               </div>
             </div>
           </div>
@@ -279,15 +280,15 @@ export function AddLeave() {
   const [sendEmail, setSendEmail] = useState(false);
 
   const STEPS = ['Company', 'Leave Type', 'Details', 'Email', 'Review'];
-  const COMPANIES = [{ id: 1, name: 'TechCorp Solutions', icon: '🏢', joining: '2024-02-10', status: 'active' }];
+  const COMPANIES = [{ id: 1, name: 'TechCorp Solutions', icon: 'building', joining: '2024-02-10', status: 'active' }];
   const LEAVE_TYPES = [
-    ['full_day','☀️','Full Day','Entire working day'],
-    ['half_day','🌤️','Half Day','Morning or afternoon'],
-    ['paid_leave','✅','Paid Leave','With salary'],
-    ['sick_leave','🤒','Sick Leave','Medical absence'],
-    ['unpaid_leave','💸','Unpaid Leave','Without salary'],
-    ['week_off','🏠','Week Off','Regular weekly off'],
-    ['holiday','🎉','Holiday','Public / festival'],
+    ['full_day','clock','Full Day','Entire working day'],
+    ['half_day','clock','Half Day','Morning or afternoon'],
+    ['paid_leave','check','Paid Leave','With salary'],
+    ['sick_leave','alert','Sick Leave','Medical absence'],
+    ['unpaid_leave','wallet','Unpaid Leave','Without salary'],
+    ['week_off','home','Week Off','Regular weekly off'],
+    ['holiday','calendar','Holiday','Public / festival'],
   ];
 
   const inp = { display: 'flex', flexDirection: 'column', gap: 5 };
@@ -336,7 +337,7 @@ export function AddLeave() {
                   style={{ border: `2px solid ${sel.type === v ? T.gold : T.border}`, borderRadius: 10, padding: '16px 12px', textAlign: 'center', cursor: 'pointer', background: sel.type === v ? T.goldLight : T.white, transition: 'all .15s', position: 'relative' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = T.gold; e.currentTarget.style.background = T.goldLight; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                   onMouseLeave={e => { if (sel.type !== v) { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.white; e.currentTarget.style.transform = ''; } }}>
-                  {sel.type === v && <div style={{ position: 'absolute', top: 6, right: 6, width: 16, height: 16, borderRadius: '50%', background: T.gold, color: T.white, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>✓</div>}
+                  {sel.type === v && <div style={{ position: 'absolute', top: 6, right: 6, width: 16, height: 16, borderRadius: '50%', background: T.gold, color: T.white, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}><Icon name="check" size={11} /></div>}
                   <div style={{ fontSize: 24, marginBottom: 6 }}>{ic}</div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: sel.type === v ? T.goldDark : T.navy }}>{lb}</div>
                   <div style={{ fontSize: 10, color: T.slateLight, marginTop: 2 }}>{sub}</div>
@@ -406,12 +407,12 @@ export function AddLeave() {
                 </div>
               ))}
             </div>
-            <div style={{ padding: '12px 16px', borderRadius: 10, background: T.successBg, border: '1px solid #B7DFD0', marginBottom: 20, fontSize: 13, color: T.success }}>✅ Leave record ready to save</div>
+            <div style={{ padding: '12px 16px', borderRadius: 10, background: T.successBg, border: '1px solid #B7DFD0', marginBottom: 20, fontSize: 13, color: T.success }}><Icon name="check" size={15} /> Leave record ready to save</div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Btn variant="outline" onClick={() => go(3)}>← Back</Btn>
               <div style={{ display: 'flex', gap: 10 }}>
                 <Btn variant="outline" onClick={() => navigate('/leave')}>Cancel</Btn>
-                <Btn variant="gold" onClick={() => navigate('/leave')}>✓ Save Leave</Btn>
+                <Btn variant="gold" onClick={() => navigate('/leave')}><Icon name="check" size={14} /> Save Leave</Btn>
               </div>
             </div>
           </div>
@@ -445,7 +446,7 @@ export function AddSalary() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <Btn variant="outline" onClick={() => navigate('/salary')} style={{ padding: '6px 12px', fontSize: 12 }}>← Back</Btn>
         <h1 style={{ fontSize: 20, fontWeight: 800, color: T.navy }}>Add Salary Record</h1>
-        {sel.type && <Badge label={sel.type === 'job' ? '🏢 Job Salary' : sel.type === 'freelancing' ? '💻 Freelance' : '✏️ Manual'} color="navy" />}
+        {sel.type && <Badge label={sel.type === 'job' ? 'Job Salary' : sel.type === 'freelancing' ? 'Freelance' : 'Manual'} color="navy" />}
       </div>
       <Card style={{ maxWidth: 760 }}>
         <WizardBar steps={STEPS} current={step} onStep={go} />
@@ -455,7 +456,7 @@ export function AddSalary() {
             <h2 style={{ fontSize: 15, fontWeight: 700, color: T.navy, marginBottom: 4 }}>Payment type</h2>
             <p style={{ fontSize: 12, color: T.slateLight, marginBottom: 20 }}>Click to select and auto-advance</p>
             <div style={{ display: 'flex', gap: 14 }}>
-              {[['🏢','Job Salary','Monthly employment salary','job'],['💻','Freelance Payment','Project/client payment','freelancing'],['✏️','Manual','One-off payment','manual']].map(([ic,lb,sub,v]) => (
+              {[['building','Job Salary','Monthly employment salary','job'],['briefcase','Freelance Payment','Project/client payment','freelancing'],['edit','Manual','One-off payment','manual']].map(([ic,lb,sub,v]) => (
                 <SelectCard key={v} icon={ic} label={lb} sub={sub} selected={sel.type === v}
                   onClick={() => { setSel({ type: v, source: null, project: null }); setTimeout(() => go(v === 'manual' ? 3 : 1), 160); }} />
               ))}
@@ -467,7 +468,7 @@ export function AddSalary() {
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: T.navy, marginBottom: 4 }}>Select {sel.type === 'job' ? 'company' : 'client / source'}</h2>
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 20 }}>
-              {(sel.type === 'job' ? [{ id:1, name:'TechCorp Solutions', sub:'Senior Dev', icon:'🏢' }] : [{ id:1, name:'FreelanceHub', sub:'Aakash Mehta', icon:'💻' },{ id:2, name:'ClientCo', sub:'Sunita Kapoor', icon:'🎨' }]).map(s => (
+              {(sel.type === 'job' ? [{ id:1, name:'TechCorp Solutions', sub:'Senior Dev', icon:'building' }] : [{ id:1, name:'FreelanceHub', sub:'Aakash Mehta', icon:'briefcase' },{ id:2, name:'ClientCo', sub:'Sunita Kapoor', icon:'image' }]).map(s => (
                 <SourceCard key={s.id} icon={s.icon} title={s.name} sub={s.sub} selected={sel.source === s.id}
                   onClick={() => { setSel({ ...sel, source: s.id }); setTimeout(() => go(sel.type === 'job' ? 3 : 2), 160); }} />
               ))}
@@ -485,7 +486,7 @@ export function AddSalary() {
                   style={{ border: `2px solid ${sel.project === pr.id ? T.gold : T.border}`, borderRadius: 10, padding: '14px 20px', cursor: 'pointer', background: sel.project === pr.id ? T.goldLight : T.white, display: 'flex', alignItems: 'center', gap: 10, transition: 'all .15s' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = T.gold; e.currentTarget.style.background = T.goldLight; }}
                   onMouseLeave={e => { if (sel.project !== pr.id) { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.white; } }}>
-                  <span style={{ fontSize: 18 }}>📁</span>
+                  <Icon name="folder" size={18} />
                   <div style={{ fontWeight: 600, color: T.navy, fontSize: 13 }}>{pr.name}</div>
                   <span style={{ fontSize: 11, color: T.gold, marginLeft: 'auto', fontWeight: 600 }}>→</span>
                 </div>
@@ -504,7 +505,7 @@ export function AddSalary() {
             </div>
             {sel.type === 'job' && form.expected && (
               <div style={{ marginTop: 16, padding: '12px 16px', background: T.navyTint, borderRadius: 8, border: `1px solid #C7D5ED` }}>
-                <div style={{ fontSize: 12, color: T.slateLight, marginBottom: 4 }}>📋 Auto-calculated based on salary cycle (1st – 30th Jun 2025)</div>
+                <div style={{ fontSize: 12, color: T.slateLight, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="clipboard" size={13} /> Auto-calculated based on salary cycle (1st – 30th Jun 2025)</div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: T.navy }}>Full month · 30 days · ₹{Number(form.expected).toLocaleString()} expected</div>
               </div>
             )}
@@ -527,7 +528,7 @@ export function AddSalary() {
             {/* Live calculation widget */}
             {form.expected && (
               <div style={{ marginTop: 20, borderRadius: 10, overflow: 'hidden', border: `1px solid ${T.border}` }}>
-                <div style={{ background: T.navy, padding: '10px 16px', fontSize: 12, fontWeight: 600, color: T.white }}>💡 Live Payment Calculator</div>
+                <div style={{ background: T.navy, padding: '10px 16px', fontSize: 12, fontWeight: 600, color: T.white, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="info" size={14} /> Live Payment Calculator</div>
                 <div style={{ padding: '16px', background: T.cream }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
                     {[['Expected', `₹${Number(form.expected).toLocaleString()}`, T.navy], ['Received', `₹${Number(form.received || 0).toLocaleString()}`, T.success], ['Pending', `₹${pending.toLocaleString()}`, pending > 0 ? T.warning : T.success]].map(([l,v,c]) => (
@@ -542,7 +543,7 @@ export function AddSalary() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11, color: T.slateLight }}>
                     <span>{pct}% received</span>
-                    <span style={{ color: pending > 0 ? T.warning : T.success, fontWeight: 600 }}>{pending > 0 ? `₹${pending.toLocaleString()} still pending` : '✅ Fully received'}</span>
+                    <span style={{ color: pending > 0 ? T.warning : T.success, fontWeight: 600 }}>{pending > 0 ? `₹${pending.toLocaleString()} still pending` : 'Fully received'}</span>
                   </div>
                 </div>
               </div>
@@ -565,12 +566,12 @@ export function AddSalary() {
                 </div>
               ))}
             </div>
-            <div style={{ padding: '12px 16px', borderRadius: 10, background: T.successBg, border: '1px solid #B7DFD0', marginBottom: 20, fontSize: 13, color: T.success }}>✅ Salary record ready to save</div>
+            <div style={{ padding: '12px 16px', borderRadius: 10, background: T.successBg, border: '1px solid #B7DFD0', marginBottom: 20, fontSize: 13, color: T.success }}><Icon name="check" size={15} /> Salary record ready to save</div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Btn variant="outline" onClick={() => go(4)}>← Back</Btn>
               <div style={{ display: 'flex', gap: 10 }}>
                 <Btn variant="outline" onClick={() => navigate('/salary')}>Cancel</Btn>
-                <Btn variant="gold" onClick={() => navigate('/salary')}>✓ Save Record</Btn>
+                <Btn variant="gold" onClick={() => navigate('/salary')}><Icon name="check" size={14} /> Save Record</Btn>
               </div>
             </div>
           </div>
@@ -595,11 +596,11 @@ export function SendEmail() {
 
   const STEPS = ['Email Type', 'Recipients', 'Template', 'Compose', 'Send'];
   const EMAIL_TYPES = [
-    ['leave','🌴','Leave Request','Inform about absence'],
-    ['work_update','📋','Work Update','Project progress update'],
-    ['mom','📅','MOM','Meeting minutes'],
-    ['salary','💰','Salary Follow-up','Payment reminder'],
-    ['custom','✏️','Custom','Write from scratch'],
+    ['leave','leave','Leave Request','Inform about absence'],
+    ['work_update','clipboard','Work Update','Project progress update'],
+    ['mom','calendar','MOM','Meeting minutes'],
+    ['salary','wallet','Salary Follow-up','Payment reminder'],
+    ['custom','edit','Custom','Write from scratch'],
   ];
   const TEMPLATES = {
     leave: { subject: 'Leave Request — {{date}}', body: 'Dear {{name}},\n\nI would like to inform you about my leave on {{date}}.\n\nReason: {{reason}}\n\nThank you for your understanding.' },
@@ -647,7 +648,7 @@ export function SendEmail() {
                 return (
                   <div key={e.id} onClick={() => toggleRecipient(e.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: i < mockEmployees.length - 1 ? `1px solid ${T.border}` : 'none', background: checked ? T.goldLight : T.white, cursor: 'pointer', transition: 'all .12s' }}>
                     <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${checked ? T.gold : T.border}`, background: checked ? T.gold : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {checked && <span style={{ color: T.white, fontSize: 11, fontWeight: 700 }}>✓</span>}
+                      {checked && <Icon name="check" size={12} />}
                     </div>
                     <div style={{ width: 32, height: 32, borderRadius: '50%', background: T.navyTint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: T.navy, flexShrink: 0 }}>
                       {e.name.split(' ').map(n => n[0]).join('')}
@@ -660,7 +661,7 @@ export function SendEmail() {
                 );
               })}
             </div>
-            {recipients.length > 0 && <div style={{ fontSize: 12, color: T.success, marginBottom: 14, fontWeight: 500 }}>✓ {recipients.length} recipient{recipients.length > 1 ? 's' : ''} selected</div>}
+            {recipients.length > 0 && <div style={{ fontSize: 12, color: T.success, marginBottom: 14, fontWeight: 500 }}><Icon name="check" size={13} /> {recipients.length} recipient{recipients.length > 1 ? 's' : ''} selected</div>}
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Btn variant="outline" onClick={() => go(0)}>← Back</Btn>
               <Btn variant="gold" onClick={() => recipients.length > 0 && go(2)}>Next →</Btn>
@@ -736,7 +737,7 @@ export function SendEmail() {
               <Btn variant="outline" onClick={() => go(3)}>← Edit</Btn>
               <div style={{ display: 'flex', gap: 10 }}>
                 <Btn variant="outline" onClick={() => navigate('/emails')}>Save Draft</Btn>
-                <Btn variant="gold" onClick={() => navigate('/emails')}>📤 Send Now</Btn>
+                <Btn variant="gold" onClick={() => navigate('/emails')}><Icon name="mail" size={14} /> Send Now</Btn>
               </div>
             </div>
           </div>

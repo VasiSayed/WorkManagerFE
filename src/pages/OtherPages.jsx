@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { T } from '../theme';
 import { mockMeetings, mockLeave, mockSalary, mockEmails } from '../data/mockData';
 import { PageHeader, FilterChips, TableWrapper, Th, Td, Btn, Badge, StatusBadge, TypeBadge, Card, SectionTitle, StatCard, Breadcrumb, EmptyState, Input, Textarea, Select, MomNotepadModal } from '../components/UI';
+import { Icon } from '../components/Icons';
 
 /* ═══ MEETINGS ═══ */
 export function MeetingList() {
@@ -44,7 +45,7 @@ export function MeetingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const meeting = mockMeetings.find(m => m.id === Number(id));
-  if (!meeting) return <EmptyState icon="📅" title="Meeting not found" action={<Btn variant="outline" onClick={() => navigate('/meetings')}>← Back</Btn>} />;
+  if (!meeting) return <EmptyState icon="calendar" title="Meeting not found" action={<Btn variant="outline" onClick={() => navigate('/meetings')}>← Back</Btn>} />;
 
   return (
     <div>
@@ -56,7 +57,7 @@ export function MeetingDetail() {
         </div>
         <div style={{display:'flex',gap:8}}>
           <Btn variant="outline" onClick={() => navigate('/meetings')}>← Back</Btn>
-          <Btn variant="outline" onClick={() => navigate(`/meetings/${id}/mom`)}>📝 Fill MOM</Btn>
+          <Btn variant="outline" onClick={() => navigate(`/meetings/${id}/mom`)}><Icon name="edit" size={14} /> Fill MOM</Btn>
         </div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
@@ -129,13 +130,13 @@ export function MeetingMOM() {
             <span style={{ color: T.slateLight, fontSize: 12 }}> · {meeting.date} {meeting.time} · {meeting.source}</span>
           </div>
           <Btn variant="gold" onClick={() => setNotepadOpen(true)} style={{ fontSize: 12, padding: '6px 14px' }}>
-            📝 Notepad Import
+            <Icon name="note" size={14} /> Notepad Import
           </Btn>
         </div>
 
         {/* Notepad hint */}
         <div style={{ padding: '9px 14px', background: T.goldLight, borderRadius: 8, border: `1px solid #EDD590`, marginBottom: 20, fontSize: 12, color: T.goldDark, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 16 }}>💡</span>
+          <Icon name="info" size={16} />
           <span>Use <strong>Notepad Import</strong> to paste your raw meeting notes — MOM, Conclusion, and Actions are auto-detected and filled in below.</span>
         </div>
 
@@ -196,17 +197,17 @@ export function MeetingMOM() {
           {/* Filled indicator */}
           {(form.mom || form.conclusion || form.next_action) && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {form.mom        && <span style={{ padding: '3px 10px', background: T.successBg, border: `1px solid #B7DFD0`, borderRadius: 20, fontSize: 11, color: T.success, fontWeight: 500 }}>✓ MOM filled</span>}
-              {form.conclusion && <span style={{ padding: '3px 10px', background: T.successBg, border: `1px solid #B7DFD0`, borderRadius: 20, fontSize: 11, color: T.success, fontWeight: 500 }}>✓ Conclusion filled</span>}
-              {form.next_action && <span style={{ padding: '3px 10px', background: T.successBg, border: `1px solid #B7DFD0`, borderRadius: 20, fontSize: 11, color: T.success, fontWeight: 500 }}>✓ Actions filled</span>}
+              {form.mom        && <span style={{ padding: '3px 10px', background: T.successBg, border: `1px solid #B7DFD0`, borderRadius: 20, fontSize: 11, color: T.success, fontWeight: 500 }}><Icon name="check" size={12} /> MOM filled</span>}
+              {form.conclusion && <span style={{ padding: '3px 10px', background: T.successBg, border: `1px solid #B7DFD0`, borderRadius: 20, fontSize: 11, color: T.success, fontWeight: 500 }}><Icon name="check" size={12} /> Conclusion filled</span>}
+              {form.next_action && <span style={{ padding: '3px 10px', background: T.successBg, border: `1px solid #B7DFD0`, borderRadius: 20, fontSize: 11, color: T.success, fontWeight: 500 }}><Icon name="check" size={12} /> Actions filled</span>}
             </div>
           )}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 }}>
-            <Btn variant="outline" onClick={() => setNotepadOpen(true)} style={{ fontSize: 12 }}>📝 Notepad Import</Btn>
+            <Btn variant="outline" onClick={() => setNotepadOpen(true)} style={{ fontSize: 12 }}><Icon name="note" size={14} /> Notepad Import</Btn>
             <div style={{ display: 'flex', gap: 10 }}>
               <Btn variant="outline" onClick={() => navigate(`/meetings/${id}`)}>Cancel</Btn>
-              <Btn variant="gold" onClick={() => navigate('/meetings')}>✓ Save MOM</Btn>
+              <Btn variant="gold" onClick={() => navigate('/meetings')}><Icon name="check" size={14} /> Save MOM</Btn>
             </div>
           </div>
         </div>
@@ -230,10 +231,10 @@ export function LeaveList() {
       <PageHeader title="Leave / Holiday / Half Day" sub="Manage your leave and absence records"
         action={<Btn variant="gold" onClick={() => navigate('/leave/new')}>＋ Add Leave</Btn>} />
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginBottom:24}}>
-        <StatCard icon="🌴" label="Total Leaves"   value="3"                                      sub="This month"   color={T.success}/>
-        <StatCard icon="🏠" label="Week Offs"       value="4"                                      sub="This month"   color={T.info}/>
-        <StatCard icon="💸" label="Total Deduction" value={`₹${totalDeduction.toLocaleString()}`} sub="May + Jun"     color={T.warning}/>
-        <StatCard icon="✅" label="Paid Leaves"     value="2"                                      sub="Approved"     color={T.navy}/>
+        <StatCard icon="leave" label="Total Leaves"   value="3"                                      sub="This month"   color={T.success}/>
+        <StatCard icon="home" label="Week Offs"       value="4"                                      sub="This month"   color={T.info}/>
+        <StatCard icon="wallet" label="Total Deduction" value={`₹${totalDeduction.toLocaleString()}`} sub="May + Jun"     color={T.warning}/>
+        <StatCard icon="check" label="Paid Leaves"     value="2"                                      sub="Approved"     color={T.navy}/>
       </div>
       <FilterChips options={filters} active={filter} onChange={setFilter} />
       <TableWrapper>
@@ -262,7 +263,7 @@ export function LeaveDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const leave = mockLeave.find(l => l.id === Number(id));
-  if (!leave) return <EmptyState icon="🌴" title="Leave not found" action={<Btn variant="outline" onClick={() => navigate('/leave')}>← Back</Btn>} />;
+  if (!leave) return <EmptyState icon="leave" title="Leave not found" action={<Btn variant="outline" onClick={() => navigate('/leave')}>← Back</Btn>} />;
   return (
     <div>
       <Breadcrumb items={['Dashboard','Leave',leave.title]}/>
@@ -301,8 +302,8 @@ export function SalaryList() {
       <PageHeader title="Salary / Payments" sub="Track expected, received, and pending amounts"
         action={<Btn variant="gold" onClick={()=>navigate('/salary/new')}>＋ Add Salary Record</Btn>}/>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginBottom:24}}>
-        <StatCard icon="📋" label="Total Expected" value={`₹${exp.toLocaleString()}`} sub="All sources"  color={T.navy}/>
-        <StatCard icon="✅" label="Total Received"  value={`₹${rec.toLocaleString()}`} sub="All sources"  color={T.success}/>
+        <StatCard icon="clipboard" label="Total Expected" value={`₹${exp.toLocaleString()}`} sub="All sources"  color={T.navy}/>
+        <StatCard icon="check" label="Total Received"  value={`₹${rec.toLocaleString()}`} sub="All sources"  color={T.success}/>
         <StatCard icon="⏳" label="Total Pending"   value={`₹${pen.toLocaleString()}`} sub="Outstanding" color={T.warning}/>
       </div>
       <FilterChips options={filters} active={filter} onChange={setFilter}/>
@@ -335,7 +336,7 @@ export function SalaryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const sal = mockSalary.find(s => s.id === Number(id));
-  if (!sal) return <EmptyState icon="💰" title="Record not found" action={<Btn variant="outline" onClick={()=>navigate('/salary')}>← Back</Btn>}/>;
+  if (!sal) return <EmptyState icon="wallet" title="Record not found" action={<Btn variant="outline" onClick={()=>navigate('/salary')}>← Back</Btn>}/>;
   const pct = sal.expected > 0 ? Math.round((sal.received/sal.expected)*100) : 0;
 
   return (
@@ -448,14 +449,14 @@ export function EmailList() {
 export function Reports() {
   const navigate = useNavigate();
   const cats = [
-    ['📋','Task Reports','Daily, project-wise, job-wise','/reports/tasks'],
-    ['📅','Meeting / MOM','MOM reports & attendance','/reports/meetings'],
-    ['💰','Salary Reports','Expected vs received, pro-rata','/reports/salary'],
-    ['🌴','Leave Reports','Leave & holiday analysis','/reports/leave'],
-    ['📧','Email Reports','Sent/failed email logs','/reports/emails'],
-    ['👥','Employee Activity','Member involvement overview','/reports/employees'],
-    ['📈','Designation History','Changes per job','/reports/designations'],
-    ['🔄','Salary Changes','Hike history','/reports/salary-changes'],
+    ['clipboard','Task Reports','Daily, project-wise, job-wise','/reports/tasks'],
+    ['calendar','Meeting / MOM','MOM reports & attendance','/reports/meetings'],
+    ['wallet','Salary Reports','Expected vs received, pro-rata','/reports/salary'],
+    ['leave','Leave Reports','Leave & holiday analysis','/reports/leave'],
+    ['mail','Email Reports','Sent/failed email logs','/reports/emails'],
+    ['users','Employee Activity','Member involvement overview','/reports/employees'],
+    ['trend','Designation History','Changes per job','/reports/designations'],
+    ['clock','Salary Changes','Hike history','/reports/salary-changes'],
   ];
   return (
     <div>
@@ -465,7 +466,7 @@ export function Reports() {
           <div key={path} style={{background:T.white,border:`1px solid ${T.border}`,borderRadius:12,padding:'20px',cursor:'pointer',transition:'all .15s'}}
             onMouseEnter={e=>{e.currentTarget.style.borderColor=T.gold;e.currentTarget.style.transform='translateY(-2px)';}}
             onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.transform='';}}>
-            <div style={{fontSize:30,marginBottom:12}}>{ic}</div>
+            <div style={{marginBottom:12}}><Icon name={ic} size={30} /></div>
             <div style={{fontSize:13,fontWeight:600,color:T.navy,marginBottom:4}}>{title}</div>
             <div style={{fontSize:12,color:T.slateLight,marginBottom:16}}>{sub}</div>
             <div style={{display:'flex',gap:6}}>

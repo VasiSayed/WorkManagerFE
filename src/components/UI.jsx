@@ -1,5 +1,6 @@
 import React from 'react';
-import { T, PRIORITY_COLORS, PRIORITY_ICONS } from '../theme';
+import { T, PRIORITY_COLORS } from '../theme';
+import { Icon } from './Icons';
 
 const useIsMobile = () => {
   const get = () => (typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
@@ -84,6 +85,8 @@ export const Card = ({ children, style = {} }) => {
 };
 
 /* ── STAT CARD ── */
+const renderIcon = (icon, fallback = 'file', size = 22) => React.isValidElement(icon) ? icon : <Icon name={icon || fallback} size={size} />;
+
 export const StatCard = ({ icon, label, value, sub, color = T.navy }) => (
   <div style={{
     background: T.white, border: `1px solid ${T.border}`, borderRadius: 12,
@@ -93,7 +96,7 @@ export const StatCard = ({ icon, label, value, sub, color = T.navy }) => (
     <div style={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: color, borderRadius: '12px 0 0 12px' }} />
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
       <span style={{ fontSize: 11, color: T.slateLight, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
-      <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+      <span style={{ lineHeight: 1, color }}>{renderIcon(icon, 'chart', 22)}</span>
     </div>
     <div style={{ fontSize: 28, fontWeight: 800, color: T.navy, lineHeight: 1 }}>{value}</div>
     {sub && <div style={{ fontSize: 12, color: T.slateLight }}>{sub}</div>}
@@ -171,11 +174,11 @@ export const FilterChips = ({ options, active, onChange }) => (
 );
 
 /* ── INPUT ── */
-export const Input = ({ label, type = 'text', value, onChange, onBlur, placeholder, required, style = {} }) => (
+export const Input = ({ label, type = 'text', value, onChange, onBlur, placeholder, required, style = {}, ...rest }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
     {label && <label style={{ fontSize: 12, fontWeight: 600, color: T.slate }}>{label}{required && <span style={{ color: T.error }}> *</span>}</label>}
     <input
-      type={type} value={value} onChange={onChange} placeholder={placeholder}
+      type={type} value={value} onChange={onChange} placeholder={placeholder} {...rest}
       style={{
         padding: '9px 12px', border: `1px solid ${T.border}`, borderRadius: 8,
         fontSize: 13, outline: 'none', width: '100%', fontFamily: 'inherit', ...style,
@@ -220,9 +223,9 @@ export const Select = ({ label, value, onChange, options, required }) => (
 );
 
 /* ── EMPTY STATE ── */
-export const EmptyState = ({ icon = '📭', title, sub, action }) => (
+export const EmptyState = ({ icon = <Icon name="archive" size={40} />, title, sub, action }) => (
   <div style={{ textAlign: 'center', padding: '48px 24px', color: T.slateLight }}>
-    <div style={{ fontSize: 40, marginBottom: 12 }}>{icon}</div>
+    <div style={{ minHeight: 44, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.slateLight }}>{icon}</div>
     <div style={{ fontSize: 15, fontWeight: 600, color: T.slate, marginBottom: 6 }}>{title}</div>
     <div style={{ fontSize: 13, marginBottom: 16 }}>{sub}</div>
     {action}
@@ -242,7 +245,7 @@ export const Modal = ({ open, onClose, title, subtitle, children, width = 560 })
             <div style={{ fontSize: 14, fontWeight: 700, color: T.white }}>{title}</div>
             {subtitle && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', marginTop: 2 }}>{subtitle}</div>}
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,.6)', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+          <button onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: 'rgba(255,255,255,.6)', cursor: 'pointer' }}><Icon name="x" size={18} /></button>
         </div>
         <div style={{ overflowY: 'auto', padding: '20px' }}>{children}</div>
       </div>
@@ -262,7 +265,7 @@ export const WizardBar = ({ steps, current, onStep }) => (
             background: i < current ? T.success : i === current ? T.gold : T.border,
             color: i <= current ? T.white : T.slateLight,
             border: i === current ? `2px solid ${T.goldDark}` : '2px solid transparent',
-          }}>{i < current ? '✓' : i + 1}</div>
+          }}>{i < current ? <Icon name="check" size={15} /> : i + 1}</div>
           <span style={{ fontSize: 11, color: i === current ? T.gold : i < current ? T.success : T.slateLight, marginTop: 4, whiteSpace: 'nowrap', fontWeight: i === current ? 600 : 400 }}>{s}</span>
         </div>
         {i < steps.length - 1 && <div style={{ flex: 1, height: 2, background: i < current ? T.success : T.border, margin: '0 4px', marginBottom: 16 }} />}
@@ -272,7 +275,7 @@ export const WizardBar = ({ steps, current, onStep }) => (
 );
 
 /* ── SELECTION CARD ── */
-export const SelectCard = ({ icon, label, sub, selected, onClick, hint = 'Click to select →' }) => (
+export const SelectCard = ({ icon, label, sub, selected, onClick, hint = 'Click to select' }) => (
   <div onClick={onClick} style={{
     border: `2px solid ${selected ? T.gold : T.border}`, borderRadius: 12,
     padding: '22px 16px', textAlign: 'center', cursor: 'pointer',
@@ -282,8 +285,8 @@ export const SelectCard = ({ icon, label, sub, selected, onClick, hint = 'Click 
     onMouseEnter={e => { if (!selected) { e.currentTarget.style.borderColor = T.gold; e.currentTarget.style.background = T.goldLight; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
     onMouseLeave={e => { if (!selected) { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.white; e.currentTarget.style.transform = ''; } }}
   >
-    {selected && <div style={{ position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: '50%', background: T.gold, color: T.white, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>✓</div>}
-    <div style={{ fontSize: 30, marginBottom: 10 }}>{icon}</div>
+    {selected && <div style={{ position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: '50%', background: T.gold, color: T.white, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="check" size={12} /></div>}
+    <div style={{ marginBottom: 10, color: T.navy }}>{renderIcon(icon, 'folder', 30)}</div>
     <div style={{ fontSize: 13, fontWeight: 700, color: selected ? T.goldDark : T.navy }}>{label}</div>
     {sub && <div style={{ fontSize: 11, color: T.slateLight, marginTop: 3 }}>{sub}</div>}
     {!selected && <div style={{ fontSize: 10, color: T.gold, marginTop: 8, fontWeight: 600 }}>{hint}</div>}
@@ -300,12 +303,12 @@ export const SourceCard = ({ icon, title, sub, selected, onClick }) => (
     onMouseEnter={e => { if (!selected) { e.currentTarget.style.borderColor = T.gold; e.currentTarget.style.background = T.goldLight; } }}
     onMouseLeave={e => { if (!selected) { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.white; } }}
   >
-    <span style={{ fontSize: 26 }}>{icon}</span>
+    <span style={{ color: T.navy }}>{renderIcon(icon, 'briefcase', 26)}</span>
     <div style={{ flex: 1 }}>
       <div style={{ fontWeight: 700, color: T.navy, fontSize: 13 }}>{title}</div>
       {sub && <div style={{ fontSize: 11, color: T.slateLight }}>{sub}</div>}
     </div>
-    {selected ? <span style={{ color: T.gold, fontWeight: 700 }}>✓</span> : <span style={{ fontSize: 11, color: T.gold, fontWeight: 600 }}>Select →</span>}
+    {selected ? <Icon name="check" size={18} style={{ color: T.gold }} /> : <span style={{ fontSize: 11, color: T.gold, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>Select <Icon name="arrowRight" size={13} /></span>}
   </div>
 );
 
@@ -339,10 +342,10 @@ export const MomNotepadModal = ({ open, onClose, onParsed, initialText = '' }) =
         {/* Header */}
         <div style={{ background: T.navy, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: T.white }}>📝 MOM Notepad — Quick Entry</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: T.white, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="note" size={17} /> MOM Notepad — Quick Entry</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', marginTop: 3 }}>Type naturally — MOM, Conclusion, Actions auto-detected</div>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,.6)', fontSize: 18, cursor: 'pointer', lineHeight: 1, marginTop: 2 }}>✕</button>
+          <button onClick={onClose} aria-label="Close" style={{ width: 30, height: 30, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: 'rgba(255,255,255,.6)', cursor: 'pointer', marginTop: 2 }}><Icon name="x" size={18} /></button>
         </div>
 
         {/* Body */}
@@ -376,7 +379,7 @@ export const MomNotepadModal = ({ open, onClose, onParsed, initialText = '' }) =
           {preview && (
             <div style={{ marginTop: 12, borderRadius: 8, overflow: 'hidden', border: `1px solid #B7DFD0` }}>
               <div style={{ background: T.success, padding: '7px 12px', fontSize: 11, fontWeight: 600, color: T.white }}>
-                ✅ Preview — will be filled into the fields below
+                <Icon name="check" size={14} /> Preview — will be filled into the fields below
               </div>
               {[['MOM / Notes', preview.mom], ['Conclusion', preview.conclusion], ['Next Actions', preview.next_action]].filter(([, v]) => v).map(([label, val]) => (
                 <div key={label} style={{ padding: '8px 14px', borderBottom: `1px solid ${T.border}`, background: T.successBg }}>
@@ -410,9 +413,9 @@ export const Toast = ({ message, type = 'success', onClose }) => {
       borderLeft: `4px solid ${colors[type] || T.success}`,
       animation: 'slideIn .2s ease',
     }}>
-      <span style={{ fontSize: 16 }}>{type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+      <span style={{ display: 'inline-flex', color: colors[type] || T.info }}><Icon name={type === 'success' ? 'check' : type === 'error' || type === 'warning' ? 'alert' : 'info'} size={17} /></span>
       <span style={{ fontSize: 13, color: T.slate, flex: 1 }}>{message}</span>
-      <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.slateLight, fontSize: 14 }}>✕</button>
+      <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.slateLight, display: 'inline-flex' }}><Icon name="x" size={15} /></button>
     </div>
   );
 };

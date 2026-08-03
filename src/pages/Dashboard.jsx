@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { T } from '../theme';
 import { mockTasks, mockMeetings, mockSalary } from '../data/mockData';
 import { StatCard, Card, SectionTitle, Btn, StatusBadge, PageHeader } from '../components/UI';
+import { Icon } from '../components/Icons';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -10,24 +11,24 @@ export default function Dashboard() {
   const pending = mockSalary.filter(s => s.pending > 0).reduce((a, b) => a + b.pending, 0);
 
   const quickActions = [
-    ['✅', 'Add Task',     '/tasks/new'],
-    ['📅', 'Add Meeting', '/meetings/new'],
-    ['🌴', 'Add Leave',   '/leave/new'],
-    ['💰', 'Add Salary',  '/salary/new'],
-    ['📧', 'Send Email',  '/emails/new'],
-    ['📊', 'Reports',     '/reports'],
+    ['tasks', 'Add Task',     '/tasks/new'],
+    ['calendar', 'Add Meeting', '/meetings/new'],
+    ['leave', 'Add Leave',   '/leave/new'],
+    ['wallet', 'Add Salary',  '/salary/new'],
+    ['mail', 'Send Email',  '/emails/new'],
+    ['chart', 'Reports',     '/reports'],
   ];
 
   return (
     <div>
-      <PageHeader title="Good morning, Arjun 👋" sub="Here's your work summary for today" />
+      <PageHeader title="Good morning, Arjun" sub="Here's your work summary for today" />
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
-        <StatCard icon="✅" label="Tasks Today"       value={today.length}               sub="2 in progress"       color={T.navy} />
-        <StatCard icon="📅" label="Upcoming Meetings"  value={upcoming.length}            sub="Next: 10:00 AM"      color={T.info} />
-        <StatCard icon="💰" label="Pending Salary"     value={`₹${pending.toLocaleString()}`} sub="Across 2 sources" color={T.warning} />
-        <StatCard icon="🌴" label="Leave Used"         value="3"                          sub="This month"          color={T.success} />
+        <StatCard icon="tasks" label="Tasks Today"       value={today.length}               sub="2 in progress"       color={T.navy} />
+        <StatCard icon="calendar" label="Upcoming Meetings"  value={upcoming.length}            sub="Next: 10:00 AM"      color={T.info} />
+        <StatCard icon="wallet" label="Pending Salary"     value={`₹${pending.toLocaleString()}`} sub="Across 2 sources" color={T.warning} />
+        <StatCard icon="leave" label="Leave Used"         value="3"                          sub="This month"          color={T.success} />
       </div>
 
       {/* Quick Actions */}
@@ -41,7 +42,7 @@ export default function Dashboard() {
             onMouseEnter={e => { e.currentTarget.style.background = T.navyLight; e.currentTarget.style.transform = 'translateY(-2px)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = T.navy; e.currentTarget.style.transform = ''; }}
           >
-            <span style={{ fontSize: 20 }}>{ic}</span>
+            <Icon name={ic} size={20} />
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,.8)', fontWeight: 500 }}>{lb}</span>
           </div>
         ))}
@@ -65,7 +66,7 @@ export default function Dashboard() {
               </div>
               <StatusBadge status={t.status} />
             </div>
-          )) : <div style={{ padding: '20px 0', textAlign: 'center', color: T.slateLight, fontSize: 13 }}>No tasks today 🎉</div>}
+          )) : <div style={{ padding: '20px 0', textAlign: 'center', color: T.slateLight, fontSize: 13 }}>No tasks today</div>}
         </Card>
 
         {/* Right column */}
@@ -75,7 +76,7 @@ export default function Dashboard() {
             {upcoming.map((m, i) => (
               <div key={m.id} style={{ padding: '10px 0', borderBottom: i < upcoming.length - 1 ? `1px solid ${T.border}` : 'none', display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }}
                 onClick={() => navigate(`/meetings/${m.id}`)}>
-                <div style={{ width: 38, height: 38, borderRadius: 8, background: T.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>📅</div>
+              <div style={{ width: 38, height: 38, borderRadius: 8, background: T.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="calendar" size={17} /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: T.navy }}>{m.title}</div>
                   <div style={{ fontSize: 11, color: T.slateLight }}>{m.date} · {m.time} · {m.members} members</div>

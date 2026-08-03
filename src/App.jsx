@@ -52,7 +52,16 @@ function App() {
         input, textarea, select, button { font-family: inherit; }
         a { text-decoration: none; color: inherit; }
         @keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
-        @media (max-width: 900px) { body { font-size: 13px; } }
+        @media (max-width: 900px) {
+          body { font-size: 13px; }
+          .auth-shell { grid-template-columns: 1fr !important; }
+          .auth-intro { padding: 32px 24px !important; min-height: 260px; }
+          .auth-form-wrap { padding: 18px 12px 28px !important; align-items: flex-start !important; }
+        }
+        @media (max-width: 520px) {
+          .auth-intro { padding: 28px 18px !important; min-height: 220px; }
+          .auth-form-wrap > div { padding: 22px 16px !important; }
+        }
       `}</style>
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -8,6 +8,7 @@ import {
   PriorityBadge, SectionTitle, Select, StatusBadge, TableWrapper, Td, Textarea, Th, TypeBadge, WizardBar, MomNotepadModal,
 } from '../components/UI';
 import { parseNotepadMulti, parseActionItems } from '../utils/parser';
+import { Icon } from '../components/Icons';
 
 export function ProtectedRoute({ children }) {
   return getAccessToken() ? children : <Navigate to="/login" replace />;
@@ -259,7 +260,7 @@ function MultiSelectBox({ label, selected = [], onToggle, items, labelKey = 'nam
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
         {items.map(item => {
           const active = ids.includes(String(item.id));
-          return <button key={item.id} type="button" onClick={() => onToggle(item.id)} style={{ border: `1px solid ${active ? T.gold : T.border}`, background: active ? T.goldLight : T.white, color: active ? T.goldDark : T.slate, padding: '6px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer' }}>{active ? '✓ ' : ''}{item[labelKey] || item.company_name || item.name}</button>;
+          return <button key={item.id} type="button" onClick={() => onToggle(item.id)} style={{ border: `1px solid ${active ? T.gold : T.border}`, background: active ? T.goldLight : T.white, color: active ? T.goldDark : T.slate, padding: '6px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer' }}>{active && <Icon name="check" size={13} style={{marginRight:4}}/>}{item[labelKey] || item.company_name || item.name}</button>;
         })}
         {items.length === 0 && <span style={{ fontSize: 12, color: T.slateLight }}>No records yet.</span>}
       </div>
@@ -268,17 +269,18 @@ function MultiSelectBox({ label, selected = [], onToggle, items, labelKey = 'nam
 }
 
 function useBootstrap() {
-  const [data, setData] = useState({ jobs: [], sources: [], projects: [], employees: [], emailTypes: [], emailTemplates: [], emailVariables: [], documentCategories: [] });
+  const [data, setData] = useState({ jobs: [], sources: [], projects: [], employees: [], emailTypes: [], emailTemplates: [], emailVariables: [], documentCategories: [], noteFolders: [], noteShareableUsers: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const load = async () => {
     setLoading(true); setError('');
     try {
-      const [jobs, sources, projects, employees, emailTypes, emailTemplates, emailVariables, documentCategories] = await Promise.all([
+      const [jobs, sources, projects, employees, emailTypes, emailTemplates, emailVariables, documentCategories, noteFolders, noteShareableUsers] = await Promise.all([
         api.list(endpoints.jobs), api.list(endpoints.sources), api.list(endpoints.projects), api.list(endpoints.employees),
         api.list(endpoints.emailTypes), api.list(endpoints.emailTemplates), api.list(endpoints.emailVariables, { active: 1 }), api.list(endpoints.documentCategories, { is_active: true }),
+        api.list(endpoints.noteFolders, { is_active: true }), api.list(endpoints.noteShareableUsers),
       ]);
-      setData({ jobs: asList(jobs), sources: asList(sources), projects: asList(projects), employees: asList(employees), emailTypes: asList(emailTypes), emailTemplates: asList(emailTemplates), emailVariables: asList(emailVariables), documentCategories: asList(documentCategories) });
+      setData({ jobs: asList(jobs), sources: asList(sources), projects: asList(projects), employees: asList(employees), emailTypes: asList(emailTypes), emailTemplates: asList(emailTemplates), emailVariables: asList(emailVariables), documentCategories: asList(documentCategories), noteFolders: asList(noteFolders), noteShareableUsers: asList(noteShareableUsers) });
     } catch (err) { setError(getErrorMessage(err)); }
     finally { setLoading(false); }
   };
@@ -293,10 +295,10 @@ export function DashboardPage() {
   const { item: data, loading, error } = useApiDetail('/dashboard/');
   const summary = data?.summary || {};
   const stats = [
-    ['✅', 'Tasks Due Today', summary.tasks_due_today || 0, T.gold],
-    ['📅', 'Upcoming Meetings', summary.upcoming_meetings_24h || 0, T.info],
-    ['💰', 'Pending Salary', money(summary.pending_salary_total), T.warning],
-    ['🌴', 'Leave Used This Month', summary.leave_days_used_this_month || 0, T.error],
+    ['tasks', 'Tasks Due Today', summary.tasks_due_today || 0, T.gold],
+    ['calendar', 'Upcoming Meetings', summary.upcoming_meetings_24h || 0, T.info],
+    ['wallet', 'Pending Salary', money(summary.pending_salary_total), T.warning],
+    ['leave', 'Leave Used This Month', summary.leave_days_used_this_month || 0, T.error],
   ];
   if (loading) return <LoadingCard label="Loading dashboard…" />;
   return (
@@ -307,7 +309,7 @@ export function DashboardPage() {
         {stats.map(([icon, label, value, color]) => (
           <Card key={label} style={{ position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', inset: '0 auto 0 0', width: 4, background: color }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: T.slateLight, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{label}</span><span style={{ fontSize: 22 }}>{icon}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: T.slateLight, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{label}</span><span style={{ color }}><Icon name={icon} size={22}/></span></div>
             <div style={{ fontSize: 30, color: T.navy, fontWeight: 900, marginTop: 10 }}>{value}</div>
           </Card>
         ))}
@@ -329,7 +331,7 @@ export function DashboardPage() {
 }
 
 function FeedList({ items, empty, render }) {
-  if (!items.length) return <EmptyState icon="📭" title={empty} sub="Use quick actions to add records." />;
+  if (!items.length) return <EmptyState icon={<Icon name="archive" size={38}/>}  title={empty} sub="Use quick actions to add records." />;
   return <div style={{ display: 'grid', gap: 10 }}>{items.map((x, idx) => <div key={`${x.kind || 'item'}-${x.id || idx}`} style={{ border: `1px solid ${T.border}`, borderRadius: 10, padding: 12, background: idx % 2 ? T.rowAlt : T.white, fontSize: 13, color: T.slate }}>{render(x)}</div>)}</div>;
 }
 
@@ -358,9 +360,9 @@ export function TaskListPage() {
         <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
         <div style={{display:'flex',justifyContent:'flex-end',gap:8}}><Btn variant="outline" onClick={()=>{setFilter('all');setDateFilter({date_from:'',date_to:''});setFilterOpen(false);}}>Clear</Btn><Btn variant="gold" onClick={()=>setFilterOpen(false)}>Apply</Btn></div>
       </Modal>
-      <PageHeader title="Tasks" sub={`${items.length} task records`} action={<div style={{display:'flex',gap:8}}><Btn variant="outline" onClick={()=>setFilterOpen(true)}>🔎 Filter</Btn><Btn variant="gold" onClick={() => navigate('/tasks/new')}>＋ Add Task</Btn></div>} />
+      <PageHeader title="Tasks" sub={`${items.length} task records`} action={<div style={{display:'flex',gap:8}}><Btn variant="outline" onClick={()=>setFilterOpen(true)}><Icon name="search" size={15}/> Filter</Btn><Btn variant="gold" onClick={() => navigate('/tasks/new')}>＋ Add Task</Btn></div>} />
       {error && <Notice type="error">{error}</Notice>}
-      {loading ? <LoadingCard /> : !items.length ? <EmptyState icon="✅" title="No tasks found" sub="Add your first task" action={<Btn variant="gold" onClick={() => navigate('/tasks/new')}>＋ Add Task</Btn>} /> : (
+      {loading ? <LoadingCard /> : !items.length ? <EmptyState icon={<Icon name="tasks" size={38}/>} title="No tasks found" sub="Add your first task" action={<Btn variant="gold" onClick={() => navigate('/tasks/new')}>＋ Add Task</Btn>} /> : (
         <TableWrapper><thead><tr><Th>Task Name</Th><Th>Source / Project</Th><Th>Assigned By</Th><Th>Date</Th><Th>Start–End</Th><Th>Duration</Th><Th>Priority</Th><Th>Status</Th><Th>Actions</Th></tr></thead><tbody>
           {items.map((t, i) => <tr key={t.id} onClick={() => navigate(`/tasks/${t.id}`)} style={{ cursor: 'pointer' }}><Td alt={i%2}><div style={{ fontWeight: 600, color: T.navy }}>{t.name}</div><TypeBadge type={t.task_type} /></Td><Td alt={i%2}><div>{sourceText(t)}</div><div style={{ fontSize: 11, color: T.slateLight }}>{projectsText(t)}</div></Td><Td alt={i%2}>{t.assigned_by_name || '—'}</Td><Td alt={i%2}>{dateText(t.date)}</Td><Td alt={i%2}>{timeText(t.start_time)}–{timeText(t.end_time)}</Td><Td alt={i%2}>{t.duration_minutes || 0} min</Td><Td alt={i%2}><PriorityBadge priority={t.priority} /></Td><Td alt={i%2}><StatusBadge status={t.status} /></Td><Td alt={i%2}><ActionCell onView={() => navigate(`/tasks/${t.id}`)} onDelete={() => remove(t.id)} /></Td></tr>)}
         </tbody></TableWrapper>
@@ -437,7 +439,7 @@ export function AddTaskPage() {
     } catch (err) { setError(getErrorMessage(err)); }
     finally { setSaving(false); }
   };
-  return <div><PageHeader title="Add Tasks" sub="Bulk create tasks from table or notepad import" action={<Btn variant="outline" onClick={safeBack}>← Back</Btn>} />{error && <Notice type="error">{error}</Notice>}<CacheBanner cacheKey={cacheKey} onRestore={draft => { if (draft.sel) setSel(draft.sel); if (draft.rows) setRows(draft.rows); setStep(draft.step || 0); }} onClear={() => { setSel({ type:'job', source:'', project:'' }); setRows([EMPTY_TASK_ROW()]); setStep(0); }} /><Modal open={notepadOpen} onClose={() => setNotepadOpen(false)} title="📝 Notepad — Quick Task Entry" subtitle="Separate multiple tasks with a blank line" width={580}>
+  return <div><PageHeader title="Add Tasks" sub="Bulk create tasks from table or notepad import" action={<Btn variant="outline" onClick={safeBack}><Icon name="arrowLeft" size={15}/> Back</Btn>} />{error && <Notice type="error">{error}</Notice>}<CacheBanner cacheKey={cacheKey} onRestore={draft => { if (draft.sel) setSel(draft.sel); if (draft.rows) setRows(draft.rows); setStep(draft.step || 0); }} onClear={() => { setSel({ type:'job', source:'', project:'' }); setRows([EMPTY_TASK_ROW()]); setStep(0); }} /><Modal open={notepadOpen} onClose={() => setNotepadOpen(false)} title={<span style={{display:'inline-flex',alignItems:'center',gap:7}}><Icon name="note" size={16}/> Notepad — Quick Task Entry</span>} subtitle="Separate multiple tasks with a blank line" width={580}>
         <div style={{ background: T.cream, borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: T.slateLight, lineHeight: 1.7 }}>
           <strong style={{ color: T.navy }}>Format:</strong> name, YYYY-MM-DD, HH:MM-HH:MM, priority, assigned to<br />
           <span style={{ fontFamily: 'monospace', color: T.navy, fontSize: 11 }}>Fix login bug, 2026-06-14, 10:00-12:00, high, Rahul</span><br />
@@ -463,7 +465,7 @@ Reason: sprint hardening`}
           const parsed = notepad.trim() ? parseNotepadMulti(notepad) : [];
           return parsed.length > 0 ? (
             <div style={{ marginTop: 10, padding: '8px 12px', background: T.successBg, borderRadius: 7, border: `1px solid #B7DFD0`, fontSize: 12, color: T.success }}>
-              ✅ {parsed.length} task{parsed.length > 1 ? 's' : ''} detected: {parsed.map(x => x.name).join(' · ')}
+              <Icon name="check" size={14}/> {parsed.length} task{parsed.length > 1 ? 's' : ''} detected: {parsed.map(x => x.name).join(' · ')}
             </div>
           ) : null;
         })()}
@@ -475,10 +477,10 @@ Reason: sprint hardening`}
 }
 
 function TypeStep({ value, onChange }) {
-  return <div><h2 style={{ color:T.navy, fontSize:16, marginBottom:12 }}>Select type</h2><div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>{[[ 'job','🏢','Job' ],[ 'freelancing','💻','Freelancing' ],[ 'manual','✏️','Manual' ]].map(([v,icon,label]) => <button key={v} onClick={() => onChange(v)} style={{ padding:30, borderRadius:14, border:`2px solid ${value===v?T.gold:T.border}`, background:value===v?T.goldLight:T.white, cursor:'pointer' }}><div style={{ fontSize:32 }}>{icon}</div><strong style={{ color:T.navy }}>{label}</strong></button>)}</div></div>;
+  return <div><h2 style={{ color:T.navy, fontSize:16, marginBottom:12 }}>Select type</h2><div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:14 }}>{[[ 'job','building','Job' ],[ 'freelancing','briefcase','Freelancing' ],[ 'manual','edit','Manual' ]].map(([v,icon,label]) => <button key={v} onClick={() => onChange(v)} style={{ padding:30, borderRadius:14, border:`2px solid ${value===v?T.gold:T.border}`, background:value===v?T.goldLight:T.white, cursor:'pointer' }}><div style={{color:T.navy,marginBottom:8}}><Icon name={icon} size={32}/></div><strong style={{ color:T.navy }}>{label}</strong></button>)}</div></div>;
 }
 function CardStep({ title, items, value, onSelect, empty, back, skip }) {
-  return <div><h2 style={{ color:T.navy, fontSize:16, marginBottom:12 }}>{title}</h2>{!items.length ? <Notice type="warning">{empty}</Notice> : <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>{items.map(x => <button key={x.id} onClick={() => onSelect(x.id)} style={{ textAlign:'left', padding:16, borderRadius:12, border:`2px solid ${String(value)===String(x.id)?T.gold:T.border}`, background:String(value)===String(x.id)?T.goldLight:T.white, cursor:'pointer' }}><strong style={{ color:T.navy }}>{x.company_name || x.name}</strong><div style={{ color:T.slateLight, fontSize:12 }}>{x.job_title || x.primary_contact_name || x.status}</div></button>)}</div>}<div style={{ marginTop:16, display:'flex', gap:8 }}><Btn variant="outline" onClick={back}>← Back</Btn>{skip && <Btn variant="outline" onClick={skip}>Skip Project</Btn>}</div></div>;
+  return <div><h2 style={{ color:T.navy, fontSize:16, marginBottom:12 }}>{title}</h2>{!items.length ? <Notice type="warning">{empty}</Notice> : <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12 }}>{items.map(x => <button key={x.id} onClick={() => onSelect(x.id)} style={{ textAlign:'left', padding:16, borderRadius:12, border:`2px solid ${String(value)===String(x.id)?T.gold:T.border}`, background:String(value)===String(x.id)?T.goldLight:T.white, cursor:'pointer' }}><strong style={{ color:T.navy }}>{x.company_name || x.name}</strong><div style={{ color:T.slateLight, fontSize:12 }}>{x.job_title || x.primary_contact_name || x.status}</div></button>)}</div>}<div style={{ marginTop:16, display:'flex', gap:8 }}><Btn variant="outline" onClick={back}>← Back</Btn>{skip && <Btn variant="outline" onClick={skip}>Skip Project</Btn>}</div></div>;
 }
 function BulkTaskTable({ rows, upd, addRow, delRow, onNotepad, next, validCount }) {
   return <div>
@@ -487,9 +489,9 @@ function BulkTaskTable({ rows, upd, addRow, delRow, onNotepad, next, validCount 
         <h2 style={{ color:T.navy, fontSize:16 }}>Add Task Rows</h2>
         <p style={{ color:T.slateLight, fontSize:12 }}>{validCount} task ready</p>
       </div>
-      <div style={{ display:'flex', gap:8 }}><Btn variant="outline" onClick={onNotepad}>📝 Notepad Import</Btn><Btn variant="gold" onClick={addRow}>＋ Row</Btn></div>
+      <div style={{ display:'flex', gap:8 }}><Btn variant="outline" onClick={onNotepad}><Icon name="note" size={15}/> Notepad Import</Btn><Btn variant="gold" onClick={addRow}>＋ Row</Btn></div>
     </div>
-    <TableWrapper><thead><tr><Th>#</Th><Th>Task Name</Th><Th>Date</Th><Th>Start</Th><Th>End</Th><Th>Priority</Th><Th>Status</Th><Th>Assigned</Th><Th>Notes</Th><Th></Th></tr></thead><tbody>{rows.map((r,i)=><tr key={r.id}><Td>{i+1}</Td><Td><input value={r.name} onChange={e=>upd(r.id,'name',e.target.value)} style={cellInput} /></Td><Td><input type="date" value={r.date} onChange={e=>upd(r.id,'date',e.target.value)} style={cellInput} /></Td><Td><input type="time" value={r.start} onChange={e=>upd(r.id,'start',e.target.value)} style={cellInput} /></Td><Td><input type="time" value={r.end} onChange={e=>upd(r.id,'end',e.target.value)} style={cellInput} /></Td><Td><select value={r.priority} onChange={e=>upd(r.id,'priority',e.target.value)} style={cellInput}>{['urgent','high','normal','low'].map(x=><option key={x} value={x}>{nice(x)}</option>)}</select></Td><Td><select value={r.status} onChange={e=>upd(r.id,'status',e.target.value)} style={cellInput}>{['todo','in_progress','completed'].map(x=><option key={x} value={x}>{nice(x)}</option>)}</select></Td><Td><input value={r.assigned} onChange={e=>upd(r.id,'assigned',e.target.value)} style={cellInput} /></Td><Td><textarea value={r.notes} onChange={e=>upd(r.id,'notes',e.target.value)} rows={1} placeholder="notes / reason" style={{...cellInput, resize:'vertical', minWidth:150}} /></Td><Td><Btn variant="ghost" onClick={()=>delRow(r.id)}>✕</Btn></Td></tr>)}</tbody></TableWrapper>
+    <TableWrapper><thead><tr><Th>#</Th><Th>Task Name</Th><Th>Date</Th><Th>Start</Th><Th>End</Th><Th>Priority</Th><Th>Status</Th><Th>Assigned</Th><Th>Notes</Th><Th></Th></tr></thead><tbody>{rows.map((r,i)=><tr key={r.id}><Td>{i+1}</Td><Td><input value={r.name} onChange={e=>upd(r.id,'name',e.target.value)} style={cellInput} /></Td><Td><input type="date" value={r.date} onChange={e=>upd(r.id,'date',e.target.value)} style={cellInput} /></Td><Td><input type="time" value={r.start} onChange={e=>upd(r.id,'start',e.target.value)} style={cellInput} /></Td><Td><input type="time" value={r.end} onChange={e=>upd(r.id,'end',e.target.value)} style={cellInput} /></Td><Td><select value={r.priority} onChange={e=>upd(r.id,'priority',e.target.value)} style={cellInput}>{['urgent','high','normal','low'].map(x=><option key={x} value={x}>{nice(x)}</option>)}</select></Td><Td><select value={r.status} onChange={e=>upd(r.id,'status',e.target.value)} style={cellInput}>{['todo','in_progress','completed'].map(x=><option key={x} value={x}>{nice(x)}</option>)}</select></Td><Td><input value={r.assigned} onChange={e=>upd(r.id,'assigned',e.target.value)} style={cellInput} /></Td><Td><textarea value={r.notes} onChange={e=>upd(r.id,'notes',e.target.value)} rows={1} placeholder="notes / reason" style={{...cellInput, resize:'vertical', minWidth:150}} /></Td><Td><Btn variant="ghost" onClick={()=>delRow(r.id)}><Icon name="x" size={15}/></Btn></Td></tr>)}</tbody></TableWrapper>
     <div style={{ display:'flex', justifyContent:'flex-end', marginTop:14 }}><Btn variant="gold" disabled={!validCount} onClick={next}>Review & Save →</Btn></div>
   </div>;
 }
@@ -577,7 +579,7 @@ export function MeetingListPage() {
   const {items,loading,error,reload}=useApiList(endpoints.meetings,dateFilter,[dateFilter.date_from,dateFilter.date_to]);
   const remove=async(id)=>{if(!confirm('Delete meeting?'))return; await api.remove(`/meetings/${id}/`); reload();};
   const actions=<div style={{display:'flex',gap:8,alignItems:'center'}}>
-    <Btn variant="outline" onClick={()=>setFilterOpen(true)}>🔎 Filter</Btn>
+    <Btn variant="outline" onClick={()=>setFilterOpen(true)}><Icon name="search" size={15}/> Filter</Btn>
     <Btn variant="outline" onClick={()=>setPdfOpen(true)}>⬇ MOM PDF</Btn>
     <Btn variant="gold" onClick={()=>navigate('/meetings/new')}>＋ Add Meeting</Btn>
   </div>;
@@ -615,14 +617,14 @@ export function MeetingMOMPage(){
   if(loading)return <LoadingCard/>;
   return <div>
     <MomNotepadModal open={notepadOpen} initialText={[form.mom, form.conclusion, form.next_action].filter(Boolean).join('\n\n')} onClose={()=>setNotepadOpen(false)} onParsed={p=>setForm(f=>mergeMomParsed(f,p))}/>
-    <PageHeader title="Fill / Edit MOM" sub={item?.title} action={<Btn variant="outline" onClick={safeBack}>← Back</Btn>}/>
+    <PageHeader title="Fill / Edit MOM" sub={item?.title} action={<Btn variant="outline" onClick={safeBack}><Icon name="arrowLeft" size={15}/> Back</Btn>}/>
     {error&&<Notice type="error">{error}</Notice>}
     <Card>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
         <div>
           <SectionTitle>Minutes of Meeting</SectionTitle>
         </div>
-        <Btn variant="gold" onClick={()=>setNotepadOpen(true)} style={{fontSize:12}}>📝 Notepad Import</Btn>
+        <Btn variant="gold" onClick={()=>setNotepadOpen(true)} style={{fontSize:12}}><Icon name="note" size={15}/> Notepad Import</Btn>
       </div>
       <FormGrid>
         <Textarea label="MOM / Discussion Notes" value={form.mom} onChange={e=>setForm({...form,mom:e.target.value})} onBlur={() => setForm(f => ({...f, mom: normalizeMomNumbering(f.mom)}))} rows={7}/>
@@ -632,7 +634,7 @@ export function MeetingMOMPage(){
         <ActionPointEditor items={form.action_items} onChange={items=>setForm({...form,action_items:items})}/>
       </FormGrid>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:16}}>
-        <Btn variant="outline" onClick={()=>setNotepadOpen(true)}>📝 Notepad Import</Btn>
+        <Btn variant="outline" onClick={()=>setNotepadOpen(true)}><Icon name="note" size={15}/> Notepad Import</Btn>
         <Btn variant="gold" onClick={save}>Save MOM</Btn>
       </div>
     </Card>
@@ -661,17 +663,17 @@ export function AddMeetingPage(){
   const save=async()=>{await api.create(endpoints.meetings,form); clearCachedDraft(cacheKey); navigate('/meetings');};
   return <div>
     <MomNotepadModal open={notepadOpen} initialText={[form.mom, form.conclusion, form.next_action].filter(Boolean).join('\n\n')} onClose={()=>setNotepadOpen(false)} onParsed={p=>setForm(f=>mergeMomParsed(f,p))}/>
-    <PageHeader title="Add Meeting" sub="Stepper flow like Tasks: type → source → project → form → members → MOM → review" action={<Btn variant="outline" onClick={safeBack}>← Back</Btn>} />
+    <PageHeader title="Add Meeting" sub="Stepper flow like Tasks: type → source → project → form → members → MOM → review" action={<Btn variant="outline" onClick={safeBack}><Icon name="arrowLeft" size={15}/> Back</Btn>} />
     <CacheBanner cacheKey={cacheKey} onRestore={draft=>{ if(draft.form) setForm(draft.form); setStep(draft.step||0); }} onClear={()=>{ setForm({meeting_type:'job',job:'',freelance_source:'',manual_source_name:'',projects:[],title:'',date:today(),start_time:'',end_time:'',location:'',link:'',agenda:'',mom:'',conclusion:'',next_action:'',action_items:[],status:'scheduled',member_roles:[]}); setStep(0); }} />
     <Card>
       <WizardBar steps={['Type','Source','Projects','Details','Members','MOM','Review']} current={step} onStep={setStep} />
-      {step===0 && <div><h2 style={{color:T.navy,fontSize:16,marginBottom:12}}>Select meeting type</h2><div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14}}>{[[ 'job','🏢','Job Meeting' ],[ 'freelancing','💻','Freelancing Meeting' ],[ 'general','📝','General' ],[ 'manual','✏️','Manual' ]].map(([v,icon,label])=><button key={v} onClick={()=>{setForm({...form,meeting_type:v,job:'',freelance_source:'',manual_source_name:'',projects:[]}); setStep(v==='general'?2:1);}} style={{padding:26,borderRadius:14,border:`2px solid ${form.meeting_type===v?T.gold:T.border}`,background:form.meeting_type===v?T.goldLight:T.white,cursor:'pointer'}}><div style={{fontSize:30}}>{icon}</div><strong style={{color:T.navy}}>{label}</strong></button>)}</div></div>}
+      {step===0 && <div><h2 style={{color:T.navy,fontSize:16,marginBottom:12}}>Select meeting type</h2><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:14}}>{[[ 'job','building','Job Meeting' ],[ 'freelancing','briefcase','Freelancing Meeting' ],[ 'general','note','General' ],[ 'manual','edit','Manual' ]].map(([v,icon,label])=><button key={v} onClick={()=>{setForm({...form,meeting_type:v,job:'',freelance_source:'',manual_source_name:'',projects:[]}); setStep(v==='general'?2:1);}} style={{padding:26,borderRadius:14,border:`2px solid ${form.meeting_type===v?T.gold:T.border}`,background:form.meeting_type===v?T.goldLight:T.white,cursor:'pointer'}}><div style={{color:T.navy,marginBottom:8}}><Icon name={icon} size={30}/></div><strong style={{color:T.navy}}>{label}</strong></button>)}</div></div>}
       {step===1 && (form.meeting_type==='manual' ? <div><Input label="Manual Source" value={form.manual_source_name} onChange={e=>setForm({...form,manual_source_name:e.target.value})}/><div style={{marginTop:16,display:'flex',gap:8}}><Btn variant="outline" onClick={()=>setStep(0)}>← Back</Btn><Btn variant="gold" onClick={()=>setStep(2)} disabled={!form.manual_source_name}>Next →</Btn></div></div> : <CardStep title={loadingSource?'Loading Source…':form.meeting_type==='job'?'Select Job':'Select Freelance Source'} items={sources} value={form.meeting_type==='job'?form.job:form.freelance_source} onSelect={id=>{setForm({...form,[form.meeting_type==='job'?'job':'freelance_source']:id,projects:[]});setStep(2);}} empty="Create source first from Management." back={()=>setStep(0)} />)}
       {step===2 && <CardStep title={loadingSource?'Loading Projects…':'Select Projects'} items={projectItems} value="" onSelect={toggleProject} empty="No project yet. You can skip." back={()=>setStep(form.meeting_type==='general'?0:1)} skip={()=>setStep(3)} />}
       {step===2 && form.projects.length>0 && <div style={{marginTop:12}}><MultiSelectBox label="Selected Projects" selected={form.projects} onToggle={toggleProject} items={projectItems}/><div style={{display:'flex',justifyContent:'flex-end',marginTop:12}}><Btn variant="gold" onClick={()=>setStep(3)}>Next →</Btn></div></div>}
       {step===3 && <div><FormGrid><Input label="Title" required value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/><Input label="Date" type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/><Input label="Start Time" type="time" value={form.start_time} onChange={e=>setForm({...form,start_time:e.target.value})}/><Input label="End Time" type="time" value={form.end_time} onChange={e=>setForm({...form,end_time:e.target.value})}/><Input label="Location" value={form.location} onChange={e=>setForm({...form,location:e.target.value})}/><Input label="Link" value={form.link} onChange={e=>setForm({...form,link:e.target.value})}/><Textarea label="Agenda" value={form.agenda} onChange={e=>setForm({...form,agenda:e.target.value})}/></FormGrid><div style={{display:'flex',justifyContent:'space-between',marginTop:16}}><Btn variant="outline" onClick={()=>setStep(2)}>← Back</Btn><Btn variant="gold" onClick={()=>setStep(4)} disabled={!form.title}>Next →</Btn></div></div>}
       {step===4 && <div><MultiSelectBox label="Members" selected={form.member_roles.map(x=>x.member)} onToggle={toggleMember} items={employeeItems}/>{form.member_roles.length>0&&<div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:10}}>{form.member_roles.map(row=>{const member=employeeItems.find(x=>String(x.id)===String(row.member));return <div key={row.member} style={{display:'flex',alignItems:'center',gap:8,border:`1px solid ${T.border}`,borderRadius:20,padding:'5px 8px',fontSize:12}}><span>{member?.name||row.member}</span><select value={row.role} onChange={e=>setMemberRole(row.member,e.target.value)} style={{border:'none',background:T.cream,fontSize:12}}><option value="host">Host</option><option value="attendee">Attendee</option><option value="client">Client</option><option value="optional">Optional</option></select></div>})}</div>}<div style={{display:'flex',justifyContent:'space-between',marginTop:16}}><Btn variant="outline" onClick={()=>setStep(3)}>← Back</Btn><Btn variant="gold" onClick={()=>setStep(5)}>Next →</Btn></div></div>}
-      {step===5 && <div><div style={{display:'flex',justifyContent:'flex-end',marginBottom:10}}><Btn variant="outline" onClick={()=>setNotepadOpen(true)}>📝 Notepad Import</Btn></div><FormGrid><Textarea label="MOM / Discussion Notes" value={form.mom} onChange={e=>setForm({...form,mom:e.target.value})} onBlur={() => setForm(f => ({...f, mom: normalizeMomNumbering(f.mom)}))} rows={5}/><Textarea label="Conclusion" value={form.conclusion} onChange={e=>setForm({...form,conclusion:e.target.value})} rows={3}/><Textarea label="Next Actions" value={form.next_action} onChange={e=>setForm(f=>{ const parsed=parseActionItems(e.target.value); const oldItems=f.action_items||[]; return {...f,next_action:e.target.value,action_items:parsed.map(p=>({...p,done:Boolean(oldItems.find(o=>o.text===p.text)?.done) || Boolean(p.done)}))}; })} rows={3}/><ActionPointEditor items={form.action_items} onChange={items=>setForm({...form,action_items:items})}/></FormGrid><div style={{display:'flex',justifyContent:'space-between',marginTop:16}}><Btn variant="outline" onClick={()=>setStep(4)}>← Back</Btn><Btn variant="gold" onClick={()=>setStep(6)}>Review →</Btn></div></div>}
+      {step===5 && <div><div style={{display:'flex',justifyContent:'flex-end',marginBottom:10}}><Btn variant="outline" onClick={()=>setNotepadOpen(true)}><Icon name="note" size={15}/> Notepad Import</Btn></div><FormGrid><Textarea label="MOM / Discussion Notes" value={form.mom} onChange={e=>setForm({...form,mom:e.target.value})} onBlur={() => setForm(f => ({...f, mom: normalizeMomNumbering(f.mom)}))} rows={5}/><Textarea label="Conclusion" value={form.conclusion} onChange={e=>setForm({...form,conclusion:e.target.value})} rows={3}/><Textarea label="Next Actions" value={form.next_action} onChange={e=>setForm(f=>{ const parsed=parseActionItems(e.target.value); const oldItems=f.action_items||[]; return {...f,next_action:e.target.value,action_items:parsed.map(p=>({...p,done:Boolean(oldItems.find(o=>o.text===p.text)?.done) || Boolean(p.done)}))}; })} rows={3}/><ActionPointEditor items={form.action_items} onChange={items=>setForm({...form,action_items:items})}/></FormGrid><div style={{display:'flex',justifyContent:'space-between',marginTop:16}}><Btn variant="outline" onClick={()=>setStep(4)}>← Back</Btn><Btn variant="gold" onClick={()=>setStep(6)}>Review →</Btn></div></div>}
       {step===6 && <div><SectionTitle>Review</SectionTitle><pre style={{whiteSpace:'pre-wrap',fontSize:12,color:T.slate,background:T.cream,padding:12,borderRadius:8}}>{JSON.stringify({type:form.meeting_type,title:form.title,date:form.date,projects:form.projects.length,members:form.member_roles.length,action_points:form.action_items.length},null,2)}</pre><div style={{display:'flex',justifyContent:'space-between',marginTop:16}}><Btn variant="outline" onClick={()=>setStep(5)}>← Edit</Btn><Btn variant="gold" onClick={save}>Save Meeting</Btn></div></div>}
     </Card>
   </div>;
@@ -765,10 +767,13 @@ function NoteDataEditor({ type, value, onChange }) {
   return <div style={{gridColumn:'1 / -1'}}><Textarea label="Custom JSON / Raw Data" rows={10} value={typeof data?.raw === 'string' ? data.raw : JSON.stringify(data || {}, null, 2)} onChange={e=>onChange({ raw:e.target.value })}/></div>;
 }
 
-function NoteDataView({ type, data }) {
+function NoteDataView({ type, data, onToggle, canEdit = false }) {
   const normalized = normalizeNoteData(type, data);
   if(type === 'plain') return <div style={{whiteSpace:'pre-wrap',lineHeight:1.7,fontSize:14,color:T.slate}}>{normalized.content || '—'}</div>;
-  if(type === 'points' || type === 'checklist') return <div style={{display:'grid',gap:10}}>{(normalized || []).map((row,idx)=><div key={idx} style={{display:'flex',gap:10,alignItems:'flex-start',border:`1px solid ${T.border}`,background:idx%2?T.rowAlt:T.white,borderRadius:10,padding:12}}><span style={{width:26,height:26,borderRadius:'50%',background:row.done||row.status==='completed'?T.successBg:T.goldLight,color:row.done||row.status==='completed'?T.success:T.goldDark,display:'inline-flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:12}}>{type==='checklist'?(row.done||row.status==='completed'?'✓':'○'):idx+1}</span><div style={{flex:1}}><div style={{fontWeight:700,color:T.navy}}>{row.name || `Item ${idx+1}`}</div><div style={{display:'flex',gap:8,marginTop:6,flexWrap:'wrap'}}><StatusBadge status={row.status || 'started'} />{row.date && <Badge label={row.date} color="slate" />}</div></div></div>)}</div>;
+  if(type === 'points' || type === 'checklist') return <div style={{display:'grid',gap:10}}>{(normalized || []).map((row,idx)=><div key={idx} style={{display:'flex',gap:10,alignItems:'flex-start',border:`1px solid ${T.border}`,background:idx%2?T.rowAlt:T.white,borderRadius:10,padding:12}}>
+    {type === 'checklist' ? <input aria-label={`Toggle ${row.name || `item ${idx + 1}`}`} type="checkbox" checked={Boolean(row.done)} disabled={!canEdit} onChange={e=>onToggle?.(idx,e.target.checked)} style={{width:20,height:20,marginTop:2,cursor:canEdit?'pointer':'not-allowed',accentColor:T.success}}/> : <span style={{width:26,height:26,borderRadius:'50%',background:row.status==='completed'?T.successBg:T.goldLight,color:row.status==='completed'?T.success:T.goldDark,display:'inline-flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:12}}>{idx+1}</span>}
+    <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,color:T.navy,textDecoration:row.done?'line-through':'none'}}>{row.name || `Item ${idx+1}`}</div><div style={{display:'flex',gap:8,marginTop:6,flexWrap:'wrap'}}><StatusBadge status={row.status || 'started'} />{row.date && <Badge label={row.date} color="slate" />}</div></div>
+  </div>)}</div>;
   if(type === 'table') {
     const cols = normalized.columns || [];
     const rows = normalized.rows || [];
@@ -785,516 +790,205 @@ function notePreviewText(note) {
   return note.description || 'Custom JSON data';
 }
 
+function noteClipboardText(note) {
+  const data = normalizeNoteData(note.data_type, note.data);
+  const lines = [note.label, note.description].filter(Boolean);
+  if (note.data_type === 'plain') lines.push(data.content || '');
+  else if (note.data_type === 'table') {
+    const columns = data.columns || [];
+    lines.push(columns.join('\t'));
+    (data.rows || []).forEach(row => lines.push((row || []).join('\t')));
+  } else if (Array.isArray(data)) {
+    data.forEach((row, index) => lines.push(`${index + 1}. ${row.done ? '[Done]' : '[ ]'} ${row.name || ''}${row.date ? ` (${row.date})` : ''}`));
+  } else lines.push(JSON.stringify(data, null, 2));
+  return lines.filter(Boolean).join('\n\n');
+}
+
+async function copyNoteToClipboard(note) {
+  const text = noteClipboardText(note);
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+}
+
+function NoteFolderTile({ folder, active, onClick, onDrop, standalone = false }) {
+  const [over, setOver] = useState(false);
+  return <button type="button" onClick={onClick} onDragOver={e=>{e.preventDefault();setOver(true);}} onDragLeave={()=>setOver(false)} onDrop={e=>{e.preventDefault();setOver(false);onDrop?.(e.dataTransfer.getData('text/note-id'));}} style={{textAlign:'left',border:`1px solid ${over||active?T.gold:T.border}`,background:over||active?T.goldLight:T.white,borderRadius:12,padding:12,cursor:'pointer',minHeight:92,display:'flex',alignItems:'center',gap:12,boxShadow:over?'0 10px 24px rgba(201,168,76,.2)':'none'}}>
+    <div style={{width:44,height:44,borderRadius:10,background:T.navyTint,color:T.navy,display:'inline-flex',alignItems:'center',justifyContent:'center',overflow:'hidden',flexShrink:0}}>{folder?.icon_url?<img src={resolveAssetUrl(folder.icon_url)} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<Icon name={standalone?'note':'folder'} size={22}/>}</div>
+    <div style={{minWidth:0}}><div style={{fontWeight:800,color:T.navy,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{standalone?'Standalone Notes':folder?.name}</div><div style={{fontSize:11,color:T.slateLight,marginTop:4}}>{standalone?'Notes without a folder':`${folder?.notes_count || 0} notes`}</div></div>
+  </button>;
+}
+
 export function NoteListPage(){
   const navigate=useNavigate();
+  const mobile=useIsMobile();
+  const boot=useBootstrap();
   const [filter,setFilter]=useState('all');
-  const params = filter==='all' ? {} : noteStatusOptions.some(([v])=>v===filter) ? {status:filter} : {data_type:filter};
-  const {items,loading,error,reload}=useApiList(endpoints.notes, params, [filter]);
-  const remove=async(id)=>{if(!confirm('Delete note?'))return; await api.remove(`${endpoints.notes}${id}/`); reload();};
-  return <div><PageHeader title="Notes" sub="Plain pages, point-wise plans, tables and checklists" action={<Btn variant="gold" onClick={()=>navigate('/notes/new')}>＋ Add Note</Btn>}/>
-    <FilterChips active={filter} onChange={setFilter} options={[[ 'all','All' ],[ 'plain','Plain' ],[ 'points','Points' ],[ 'table','Table' ],[ 'checklist','Checklist' ],[ 'started','Started' ],[ 'partial_done','Partial' ],[ 'completed','Completed' ]]}/>
+  const [folder,setFolder]=useState('all');
+  const [message,setMessage]=useState('');
+  const [folderModal,setFolderModal]=useState(false);
+  const [folderForm,setFolderForm]=useState({name:'',description:'',parent:'',icon_image:null});
+  const params = {
+    ...(filter==='all'?{}:filter==='shared'?{shared:true}:filter==='personal'?{owned:true}:noteStatusOptions.some(([v])=>v===filter)?{status:filter}:{data_type:filter}),
+    ...(folder==='all'?{}:folder==='standalone'?{standalone:true}:{folder}),
+  };
+  const {items,loading,error,reload}=useApiList(endpoints.notes,params,[filter,folder]);
+  const folders=boot.noteFolders || [];
+  const remove=async(id)=>{if(!confirm('Delete note?'))return;await api.remove(`${endpoints.notes}${id}/`);reload();boot.reloadBootstrap();};
+  const move=async(noteId,targetFolder)=>{if(!noteId)return;await api.create(`${endpoints.notes}${noteId}/move/`,{folder:targetFolder==='standalone'?null:targetFolder});setMessage('Note moved successfully.');reload();boot.reloadBootstrap();};
+const saveFolder = async () => {
+  try {
+    const fd = new FormData();
+
+    fd.append("name", folderForm.name.trim());
+    fd.append("is_active", "true");
+
+    if (folderForm.description?.trim()) {
+      fd.append("description", folderForm.description.trim());
+    }
+
+    if (folderForm.parent) {
+      fd.append("parent", folderForm.parent);
+    }
+
+    if (folderForm.icon_image instanceof File) {
+      fd.append("icon_image", folderForm.icon_image);
+    }
+
+    await api.upload(endpoints.noteFolders, fd);
+
+    setFolderModal(false);
+
+    setFolderForm({
+      name: "",
+      description: "",
+      parent: "",
+      icon_image: null,
+    });
+
+    await boot.reloadBootstrap();
+  } catch (error) {
+    console.error("Unable to create note folder:", error);
+  }
+};
+const copy=async(note)=>{await copyNoteToClipboard(note);setMessage('Note copied to clipboard.');};
+  return <div><PageHeader title="Notes" sub="Create standalone notes or organize them into folders. Drag owned notes between folders." action={<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Btn variant="outline" onClick={()=>setFolderModal(true)}><Icon name="folder" size={15}/> Add Folder</Btn><Btn variant="gold" onClick={()=>navigate('/notes/new')}><Icon name="plus" size={15}/> Add Note</Btn></div>}/>
+    {message&&<Notice type="success">{message}</Notice>}
+    <Card style={{marginBottom:14}}><SectionTitle>Note Folders</SectionTitle><div style={{display:'grid',gridTemplateColumns:mobile?'1fr':'repeat(auto-fill,minmax(210px,1fr))',gap:10}}><NoteFolderTile standalone active={folder==='standalone'} onClick={()=>setFolder('standalone')} onDrop={id=>move(id,'standalone')}/>{folders.map(f=><NoteFolderTile key={f.id} folder={f} active={String(folder)===String(f.id)} onClick={()=>setFolder(String(f.id))} onDrop={id=>move(id,f.id)}/>)}</div><button type="button" onClick={()=>setFolder('all')} style={{marginTop:10,border:0,background:'transparent',color:T.goldDark,fontSize:12,fontWeight:700,cursor:'pointer'}}>Show notes from all folders</button></Card>
+    <FilterChips active={filter} onChange={setFilter} options={[[ 'all','All' ],[ 'personal','Owned by Me' ],[ 'shared','Shared with Me' ],[ 'plain','Plain' ],[ 'points','Points' ],[ 'table','Table' ],[ 'checklist','Checklist' ],[ 'started','Started' ],[ 'partial_done','Partial' ],[ 'completed','Completed' ]]}/>
     {error&&<Notice type="error">{error}</Notice>}
-    {loading?<LoadingCard/>:!items.length?<EmptyState icon="📝" title="No notes found" sub="Create your first note." action={<Btn variant="gold" onClick={()=>navigate('/notes/new')}>＋ Add Note</Btn>}/>:<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(290px,1fr))',gap:14}}>{items.map(note=><Card key={note.id} style={{cursor:'pointer',display:'flex',flexDirection:'column',gap:10}}><div onClick={()=>navigate(`/notes/${note.id}`)} style={{flex:1}}><div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'flex-start'}}><div><h3 style={{fontSize:15,color:T.navy,marginBottom:5}}>{note.label}</h3><div style={{display:'flex',gap:6,flexWrap:'wrap'}}><Badge label={nice(note.data_type)} color="info"/><StatusBadge status={note.status}/></div></div><Badge label={boolText(note.is_active)} color={note.is_active===false?'slate':'success'}/></div><p style={{fontSize:12,color:T.slateLight,lineHeight:1.5,marginTop:12}}>{notePreviewText(note)}</p><div style={{fontSize:11,color:T.slateLight,marginTop:10}}>{note.job_name || note.freelance_source_name || note.project_name || 'General Note'}</div></div><div style={{display:'flex',justifyContent:'flex-end',gap:6,borderTop:`1px solid ${T.border}`,paddingTop:10}}><Btn variant="outline" onClick={()=>navigate(`/notes/${note.id}/edit`)} style={{fontSize:11,padding:'5px 10px'}}>Edit</Btn><Btn variant="danger" onClick={()=>remove(note.id)} style={{fontSize:11,padding:'5px 10px'}}>Delete</Btn></div></Card>)}</div>}
+    {loading?<LoadingCard/>:!items.length?<EmptyState icon={<Icon name="note" size={38}/>} title="No notes found" sub="Create a note or select another folder." action={<Btn variant="gold" onClick={()=>navigate('/notes/new')}><Icon name="plus" size={15}/> Add Note</Btn>}/>:<div style={{display:'grid',gridTemplateColumns:mobile?'1fr':'repeat(auto-fill,minmax(290px,1fr))',gap:14}}>{items.map(note=><Card key={note.id} draggable={Boolean(note.is_owner)} onDragStart={e=>{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/note-id',String(note.id));}} style={{cursor:note.is_owner?'grab':'default',display:'flex',flexDirection:'column',gap:10}}><div onClick={()=>navigate(`/notes/${note.id}`)} style={{flex:1,cursor:'pointer'}}><div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'flex-start'}}><div style={{minWidth:0}}><h3 style={{fontSize:15,color:T.navy,marginBottom:5,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{note.label}</h3><div style={{display:'flex',gap:6,flexWrap:'wrap'}}><Badge label={nice(note.data_type)} color="info"/><StatusBadge status={note.status}/>{note.visibility==='shared'&&<Badge label="Shared" color="gold"/>}</div></div>{note.is_owner&&<Icon name="grip" size={18} style={{color:T.slateLight}}/>}</div><p style={{fontSize:12,color:T.slateLight,lineHeight:1.5,marginTop:12}}>{notePreviewText(note)}</p><div style={{fontSize:11,color:T.slateLight,marginTop:10}}>{note.folder_name || 'Standalone'} · {note.job_name || note.freelance_source_name || note.project_name || 'General Note'}</div></div><div style={{display:'flex',justifyContent:'flex-end',gap:6,borderTop:`1px solid ${T.border}`,paddingTop:10,flexWrap:'wrap'}}>{note.is_owner&&<select aria-label="Move note to folder" value={note.folder?String(note.folder):'standalone'} onClick={e=>e.stopPropagation()} onChange={e=>move(note.id,e.target.value)} style={{minWidth:mobile?'100%':150,padding:'6px 9px',border:`1px solid ${T.border}`,borderRadius:7,background:T.white,color:T.navy,fontSize:11,cursor:'pointer'}}><option value="standalone">Standalone</option>{folders.map(f=><option key={f.id} value={String(f.id)}>{f.name}</option>)}</select>}<Btn variant="outline" onClick={()=>copy(note)} style={{fontSize:11,padding:'5px 9px'}}><Icon name="copy" size={14}/> Copy</Btn>{note.can_edit&&<Btn variant="outline" onClick={()=>navigate(`/notes/${note.id}/edit`)} style={{fontSize:11,padding:'5px 9px'}}><Icon name="edit" size={14}/> Edit</Btn>}{note.is_owner&&<Btn variant="danger" onClick={()=>remove(note.id)} style={{fontSize:11,padding:'5px 9px'}}><Icon name="trash" size={14}/> Delete</Btn>}</div></Card>)}</div>}
+    <Modal open={folderModal} onClose={()=>setFolderModal(false)} title="Create Note Folder" subtitle="Folders are optional; standalone notes remain supported."><div style={{display:'grid',gap:12}}><Input label="Folder Name" required value={folderForm.name} onChange={e=>setFolderForm({...folderForm,name:e.target.value})}/><Select label="Parent Folder" value={folderForm.parent} onChange={e=>setFolderForm({...folderForm,parent:e.target.value})} options={[[ '', 'No Parent' ],...folders.map(f=>[String(f.id),f.name])]}/><Textarea label="Description" value={folderForm.description} onChange={e=>setFolderForm({...folderForm,description:e.target.value})}/><Input label="Folder Icon Image" type="file" onChange={e=>setFolderForm({...folderForm,icon_image:e.target.files?.[0]||null})}/><div style={{display:'flex',justifyContent:'flex-end',gap:8}}><Btn variant="outline" onClick={()=>setFolderModal(false)}>Cancel</Btn><Btn variant="gold" onClick={saveFolder} disabled={!folderForm.name.trim()}><Icon name="check" size={15}/> Create Folder</Btn></div></div></Modal>
   </div>;
 }
 
 export function NoteDetailPage(){
-  const {id}=useParams(); const navigate=useNavigate(); const {item,loading,error,reload}=useApiDetail(`${endpoints.notes}${id}/`,[id]);
-  const remove=async()=>{if(!confirm('Delete note?'))return; await api.remove(`${endpoints.notes}${id}/`); navigate('/notes');};
-  const setStatus=async(status)=>{await api.update(`${endpoints.notes}${id}/`,{status}); reload();};
-  if(loading)return <LoadingCard/>; if(error)return <Notice type="error">{error}</Notice>; if(!item)return null;
-  return <div><Breadcrumb items={['Dashboard','Notes',item.label]}/><PageHeader title={item.label} sub={item.description || 'Note detail'} action={<><Btn variant="outline" onClick={()=>navigate('/notes')}>← Back</Btn><Btn variant="outline" onClick={()=>navigate(`/notes/${id}/edit`)}>Edit</Btn><Btn variant="danger" onClick={remove}>Delete</Btn></>}/>
-    <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 280px',gap:18}}><Card><div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap'}}><Badge label={nice(item.data_type)} color="info"/><StatusBadge status={item.status}/><Badge label={boolText(item.is_active)} color={item.is_active===false?'slate':'success'}/></div><NoteDataView type={item.data_type} data={item.data}/></Card><Card><SectionTitle>Info</SectionTitle>{[['Job',item.job_name],['Freelance Source',item.freelance_source_name],['Project',item.project_name],['Members',(item.members||[]).length ? `${item.members.length} selected` : '—'],['Created',item.created_at],['Updated',item.updated_at]].map(([l,v])=><div key={l} style={{padding:'9px 0',borderBottom:`1px solid ${T.border}`}}><div style={{fontSize:10,color:T.slateLight,fontWeight:800,textTransform:'uppercase'}}>{l}</div><div style={{fontSize:13,color:T.navy,fontWeight:600,marginTop:3}}>{v || '—'}</div></div>)}<SectionTitle style={{marginTop:14}}>Change Status</SectionTitle><Select value={item.status} onChange={e=>setStatus(e.target.value)} options={noteStatusOptions}/></Card></div>
+  const {id}=useParams();const navigate=useNavigate();const mobile=useIsMobile();const {item,loading,error,reload}=useApiDetail(`${endpoints.notes}${id}/`,[id]);const [message,setMessage]=useState('');
+  const remove=async()=>{if(!confirm('Delete note?'))return;await api.remove(`${endpoints.notes}${id}/`);navigate('/notes');};
+  const setStatus=async(status)=>{await api.update(`${endpoints.notes}${id}/`,{status});reload();};
+  const toggle=async(index,done)=>{await api.create(`${endpoints.notes}${id}/checklist-items/${index}/toggle/`,{done});setMessage(done?'Checklist item marked done.':'Checklist item marked not done.');reload();};
+  const copy=async()=>{await copyNoteToClipboard(item);setMessage('Note copied to clipboard.');};
+  if(loading)return <LoadingCard/>;if(error)return <Notice type="error">{error}</Notice>;if(!item)return null;
+  return <div><Breadcrumb items={['Dashboard','Notes',item.label]}/><PageHeader title={item.label} sub={item.description || 'Note detail'} action={<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Btn variant="outline" onClick={()=>navigate('/notes')}><Icon name="arrowLeft" size={15}/> Back</Btn><Btn variant="outline" onClick={copy}><Icon name="copy" size={15}/> Copy</Btn>{item.can_edit&&<Btn variant="outline" onClick={()=>navigate(`/notes/${id}/edit`)}><Icon name="edit" size={15}/> Edit</Btn>}{item.is_owner&&<Btn variant="danger" onClick={remove}><Icon name="trash" size={15}/> Delete</Btn>}</div>}/>
+    {message&&<Notice type="success">{message}</Notice>}
+    <div style={{display:'grid',gridTemplateColumns:mobile?'1fr':'minmax(0,1fr) 280px',gap:18}}><Card><div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap'}}><Badge label={nice(item.data_type)} color="info"/><StatusBadge status={item.status}/><Badge label={item.visibility==='shared'?'Shared':'Personal'} color={item.visibility==='shared'?'gold':'slate'}/></div><NoteDataView type={item.data_type} data={item.data} canEdit={item.can_edit} onToggle={toggle}/></Card><Card><SectionTitle>Info</SectionTitle>{[['Folder',item.folder_name||'Standalone'],['Job',item.job_name],['Freelance Source',item.freelance_source_name],['Project',item.project_name],['Shared With',(item.shared_users||[]).map(x=>x.display_name).join(', ')||'Only me'],['Created',item.created_at],['Updated',item.updated_at]].map(([l,v])=><div key={l} style={{padding:'9px 0',borderBottom:`1px solid ${T.border}`}}><div style={{fontSize:10,color:T.slateLight,fontWeight:800,textTransform:'uppercase'}}>{l}</div><div style={{fontSize:13,color:T.navy,fontWeight:600,marginTop:3,wordBreak:'break-word'}}>{v||'—'}</div></div>)}{item.can_edit&&<><SectionTitle style={{marginTop:14}}>Change Status</SectionTitle><Select value={item.status} onChange={e=>setStatus(e.target.value)} options={noteStatusOptions}/></>}</Card></div>
   </div>;
 }
 
 export function NoteFormPage(){
-  const {id}=useParams(); const edit=Boolean(id); const navigate=useNavigate(); const boot=useBootstrap();
-  const [form,setForm]=useState({label:'',description:'',job:'',freelance_source:'',project:'',members:[],data_type:'plain',data:emptyNoteData('plain'),status:'will_start',is_active:true});
-  const [loading,setLoading]=useState(edit); const [error,setError]=useState('');
-  useEffect(()=>{ if(!edit) return; setLoading(true); api.get(`${endpoints.notes}${id}/`).then(item=>setForm({...item,job:item.job||'',freelance_source:item.freelance_source||'',project:item.project||'',members:item.members||[],data:normalizeNoteData(item.data_type,item.data)})).catch(e=>setError(getErrorMessage(e))).finally(()=>setLoading(false)); },[id]);
-  const toggleMember = (memberId) => setForm(f=>({ ...f, members:f.members.map(String).includes(String(memberId)) ? f.members.filter(x=>String(x)!==String(memberId)) : [...f.members, memberId] }));
-  const setType = (type) => setForm(f=>({ ...f, data_type:type, data:emptyNoteData(type) }));
-  const save=async()=>{ const payload={...form,is_active:form.is_active===true||form.is_active==='true'}; if(edit) await api.update(`${endpoints.notes}${id}/`, payload); else await api.create(endpoints.notes, payload); navigate('/notes'); };
+  const {id}=useParams();const edit=Boolean(id);const navigate=useNavigate();const boot=useBootstrap();
+  const [form,setForm]=useState({label:'',description:'',folder:'',visibility:'personal',shared_with:[],share_permission:'edit',job:'',freelance_source:'',project:'',members:[],data_type:'plain',data:emptyNoteData('plain'),status:'will_start',is_active:true});
+  const [loading,setLoading]=useState(edit);const [error,setError]=useState('');
+  useEffect(()=>{if(!edit)return;setLoading(true);api.get(`${endpoints.notes}${id}/`).then(item=>setForm({...item,folder:item.folder||'',job:item.job||'',freelance_source:item.freelance_source||'',project:item.project||'',members:item.members||[],shared_with:(item.shared_users||[]).map(x=>x.id),share_permission:item.shared_users?.[0]?.permission||'edit',data:normalizeNoteData(item.data_type,item.data)})).catch(e=>setError(getErrorMessage(e))).finally(()=>setLoading(false));},[id,edit]);
+  const toggleMember=memberId=>setForm(f=>({...f,members:f.members.map(String).includes(String(memberId))?f.members.filter(x=>String(x)!==String(memberId)):[...f.members,memberId]}));
+  const toggleShare=userId=>setForm(f=>({...f,shared_with:f.shared_with.map(String).includes(String(userId))?f.shared_with.filter(x=>String(x)!==String(userId)):[...f.shared_with,userId]}));
+  const setType=type=>setForm(f=>({...f,data_type:type,data:emptyNoteData(type)}));
+  const ownerControlled=!edit || form.is_owner!==false;
+  const save=async()=>{try{const contentPayload={label:form.label,description:form.description,data_type:form.data_type,data:form.data,status:form.status};const payload=ownerControlled?{...contentPayload,folder:form.folder||null,visibility:form.shared_with.length?'shared':'personal',shared_with:form.shared_with,share_permission:form.share_permission,job:form.job||null,freelance_source:form.freelance_source||null,project:form.project||null,members:form.members||[],is_active:form.is_active===true||form.is_active==='true'}:contentPayload;if(edit)await api.update(`${endpoints.notes}${id}/`,payload);else await api.create(endpoints.notes,payload);navigate('/notes');}catch(e){setError(getErrorMessage(e));}};
   if(loading)return <LoadingCard/>;
-  return <WizardForm title={edit?'Edit Note':'Add Note'} back={edit?`/notes/${id}`:'/notes'} save={save} dirty={Boolean(form.label || form.description)}>{error&&<Notice type="error">{error}</Notice>}<FormGrid>
-    <Input label="Label" required value={form.label} onChange={e=>setForm({...form,label:e.target.value})}/>
-    <Select label="Data Type" value={form.data_type} onChange={e=>setType(e.target.value)} options={noteTypeOptions}/>
-    <Select label="Status" value={form.status} onChange={e=>setForm({...form,status:e.target.value})} options={noteStatusOptions}/>
-    <Select label="Active" value={String(form.is_active)} onChange={e=>setForm({...form,is_active:e.target.value==='true'})} options={[[ 'true','Active' ],[ 'false','Inactive' ]]}/>
-    <Textarea label="Description" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
-    <SourceFields form={form} setForm={setForm} boot={boot}/>
-    <div style={{gridColumn:'1 / -1'}}><MultiSelectBox label="Related Members" selected={form.members} onToggle={toggleMember} items={boot.employees || []}/></div>
+  return <WizardForm title={edit?'Edit Note':'Add Note'} back={edit?`/notes/${id}`:'/notes'} save={save} dirty={Boolean(form.label||form.description)}>{error&&<Notice type="error">{error}</Notice>}{!ownerControlled&&<Notice type="info">You can edit this shared note's content, checklist and status. Folder, source and sharing settings remain controlled by the owner.</Notice>}<FormGrid>
+    <Input label="Label" required value={form.label} onChange={e=>setForm({...form,label:e.target.value})}/>{ownerControlled&&<RelationSelect label="Folder / Bunch" value={form.folder} onChange={v=>setForm({...form,folder:v})} items={boot.noteFolders||[]} blank="Standalone Note"/>}
+    <Select label="Data Type" value={form.data_type} onChange={e=>setType(e.target.value)} options={noteTypeOptions}/><Select label="Status" value={form.status} onChange={e=>setForm({...form,status:e.target.value})} options={noteStatusOptions}/>
+    {ownerControlled&&<><Select label="Active" value={String(form.is_active)} onChange={e=>setForm({...form,is_active:e.target.value==='true'})} options={[[ 'true','Active' ],[ 'false','Inactive' ]]}/><Select label="Shared User Permission" value={form.share_permission} onChange={e=>setForm({...form,share_permission:e.target.value})} options={[[ 'edit','Can Edit' ],[ 'view','View Only' ]]}/></>}
+    <Textarea label="Description" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>{ownerControlled&&<SourceFields form={form} setForm={setForm} boot={boot}/>} 
+    {ownerControlled&&<div style={{gridColumn:'1 / -1'}}><MultiSelectBox label="Related Members" selected={form.members} onToggle={toggleMember} items={boot.employees||[]}/></div>}
+    {ownerControlled&&<div style={{gridColumn:'1 / -1'}}><MultiSelectBox label="Share with Accepted / Invited Users" selected={form.shared_with} onToggle={toggleShare} items={boot.noteShareableUsers||[]} labelKey="display_name"/><div style={{fontSize:11,color:T.slateLight,marginTop:6}}>Only users with an accepted invitation are available. Leave empty to keep this note personal.</div></div>}
     <NoteDataEditor type={form.data_type} value={form.data} onChange={data=>setForm({...form,data})}/>
   </FormGrid></WizardForm>;
 }
 
 /* Documents */
 const getDocumentUrl = (doc) => resolveAssetUrl(doc?.document_file || doc?.document_url || doc?.external_url);
+const allDocumentFiles = (doc) => {
+  const rows = [];
+  const legacy = getDocumentUrl(doc);
+  if (legacy && (doc?.document_file || doc?.document_path)) rows.push({ id: 'legacy', name: String(doc.document_path || doc.name || 'Primary file').split('/').pop(), url: legacy, legacy: true });
+  (doc?.files || []).forEach(file => rows.push({ id: file.id, name: file.original_name || String(file.file || '').split('/').pop(), url: resolveAssetUrl(file.file_url || file.file) }));
+  if (!rows.length && doc?.external_url) rows.push({ id: 'external', name: 'External Link', url: resolveAssetUrl(doc.external_url), external: true });
+  return rows;
+};
 
 function DownloadButton({ url, label='Download', style={}, download=true }) {
-  const finalUrl = resolveAssetUrl(url);
-  if(!finalUrl) return <Btn variant="outline" disabled style={style}>No File</Btn>;
-  return <a href={finalUrl} {...(download ? { download: true } : {})} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{display:'inline-flex'}}><Btn variant="outline" style={style}>⬇ {label}</Btn></a>;
+  const finalUrl=resolveAssetUrl(url);if(!finalUrl)return <Btn variant="outline" disabled style={style}>No File</Btn>;
+  return <a href={finalUrl} {...(download?{download:true}:{})} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{display:'inline-flex'}}><Btn variant="outline" style={style}><Icon name="download" size={14}/> {label}</Btn></a>;
 }
 
-export function DocumentListPage() {
-  const navigate = useNavigate();
-  const boot = useBootstrap();
-  const mobile = useIsMobile();
-
-  const [listOpen, setListOpen] = useState(false);
-  const [category, setCategory] = useState("");
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const categories = boot.documentCategories || [];
-
-  const categoryLabel = (cat) =>
-    cat?.parent_name
-      ? `${cat.parent_name} / ${cat.name}`
-      : cat?.name || "Uncategorized";
-
-  const selectedCategory = categories.find(
-    (c) => String(c.id) === String(category),
-  );
-
-  const loadDocuments = async (categoryId = "") => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const params = categoryId ? { category: categoryId } : {};
-      const data = await api.list(endpoints.documents, params);
-      setDocuments(asList(data));
-    } catch (err) {
-      setError(getErrorMessage(err));
-      setDocuments([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openAllDocuments = () => {
-    setCategory("");
-    setListOpen(true);
-    loadDocuments("");
-  };
-
-  const openCategoryDocuments = (categoryId) => {
-    const value = String(categoryId || "");
-    setCategory(value);
-    setListOpen(true);
-    loadDocuments(value);
-  };
-
-  const changeCategory = (value) => {
-    const next = String(value || "");
-    setCategory(next);
-    loadDocuments(next);
-  };
-
-  const backToFolders = () => {
-    setListOpen(false);
-    setCategory("");
-    setDocuments([]);
-    setError("");
-  };
-
-  const remove = async (id) => {
-    if (!confirm("Delete document?")) return;
-    await api.remove(`${endpoints.documents}${id}/`);
-    loadDocuments(category);
-  };
-
-  const folderCard = (key, label, sub, active, onClick) => (
-    <button
-      key={key}
-      type="button"
-      onClick={onClick}
-      style={{
-        textAlign: "left",
-        border: `1px solid ${active ? T.gold : T.border}`,
-        background: active ? T.goldLight : T.white,
-        borderRadius: 12,
-        padding: 14,
-        cursor: "pointer",
-        minHeight: 96,
-        boxShadow: active ? "0 8px 18px rgba(201,168,76,.18)" : "none",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginBottom: 8,
-        }}
-      >
-        <span style={{ fontSize: 26 }}>{active ? "📂" : "📁"}</span>
-        <strong style={{ color: T.navy, fontSize: 14, lineHeight: 1.25 }}>
-          {label}
-        </strong>
-      </div>
-
-      <div style={{ fontSize: 12, color: T.slateLight }}>{sub}</div>
-    </button>
-  );
-
-  if (!listOpen) {
-    return (
-      <div>
-        <PageHeader
-          title="Documents"
-          sub="Select a folder/category, or open All to view documents"
-          action={
-            <Btn variant="gold" onClick={() => navigate("/documents/new")}>
-              ＋ Add Document
-            </Btn>
-          }
-        />
-
-        <Card>
-          <SectionTitle>Document Folders</SectionTitle>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: mobile
-                ? "1fr"
-                : "repeat(auto-fill,minmax(230px,1fr))",
-              gap: 12,
-            }}
-          >
-            {folderCard(
-              "all",
-              "All Documents",
-              "Click to show all documents",
-              false,
-              openAllDocuments,
-            )}
-
-            {categories.map((cat) =>
-              folderCard(
-                cat.id,
-                categoryLabel(cat),
-                cat.parent_name ? "Sub-folder" : "Category folder",
-                false,
-                () => openCategoryDocuments(cat.id),
-              ),
-            )}
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <PageHeader
-        title={category ? categoryLabel(selectedCategory) : "All Documents"}
-        sub={
-          category
-            ? "Documents filtered by selected folder/category"
-            : "Showing all documents"
-        }
-        action={
-          <div style={{ display: "flex", gap: 8 }}>
-            <Btn variant="outline" onClick={backToFolders}>
-              ← Back to Folders
-            </Btn>
-            <Btn variant="gold" onClick={() => navigate("/documents/new")}>
-              ＋ Add Document
-            </Btn>
-          </div>
-        }
-      />
-
-      <Card style={{ marginBottom: 16 }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: mobile ? "1fr" : "minmax(260px, 380px) auto",
-            gap: 12,
-            alignItems: "end",
-          }}
-        >
-          <Select
-            label="Filter by Category"
-            value={category}
-            onChange={(e) => changeCategory(e.target.value)}
-            options={[
-              ["", "All Documents"],
-              ...categories.map((cat) => [String(cat.id), categoryLabel(cat)]),
-            ]}
-          />
-
-          <div style={{ fontSize: 12, color: T.slateLight, paddingBottom: 9 }}>
-            {loading
-              ? "Loading documents..."
-              : `${documents.length} document${documents.length === 1 ? "" : "s"} found`}
-          </div>
-        </div>
-      </Card>
-
-      {error && <Notice type="error">{error}</Notice>}
-
-      {loading ? (
-        <LoadingCard />
-      ) : !documents.length ? (
-        <EmptyState
-          icon="📄"
-          title="No documents found"
-          sub={
-            category
-              ? "This selected folder has no documents yet."
-              : "No documents available."
-          }
-          action={
-            <Btn variant="gold" onClick={() => navigate("/documents/new")}>
-              ＋ Add Document
-            </Btn>
-          }
-        />
-      ) : (
-        <TableWrapper>
-          <thead>
-            <tr>
-              <Th>Name</Th>
-              <Th>Category</Th>
-              <Th>Source</Th>
-              <Th>Status</Th>
-              <Th>File / URL</Th>
-              <Th>Actions</Th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {documents.map((doc, i) => (
-              <tr
-                key={doc.id}
-                onClick={() => navigate(`/documents/${doc.id}`)}
-                style={{ cursor: "pointer" }}
-              >
-                <Td alt={i % 2}>
-                  <strong style={{ color: T.navy }}>{doc.name}</strong>
-                  <br />
-                  <span style={{ fontSize: 11, color: T.slateLight }}>
-                    {doc.description || doc.document_path || "—"}
-                  </span>
-                </Td>
-
-                <Td alt={i % 2}>{doc.category_name || "—"}</Td>
-
-                <Td alt={i % 2}>
-                  {doc.job_name ||
-                    doc.freelance_source_name ||
-                    doc.project_name ||
-                    "General"}
-                </Td>
-
-                <Td alt={i % 2}>
-                  <Badge
-                    label={boolText(doc.is_active)}
-                    color={doc.is_active === false ? "slate" : "success"}
-                  />
-                </Td>
-
-                <Td alt={i % 2}>
-                  <DownloadButton
-                    url={getDocumentUrl(doc)}
-                    style={{ fontSize: 11, padding: "5px 10px" }}
-                  />
-                </Td>
-
-                <Td alt={i % 2}>
-                  <ActionCell
-                    onView={() => navigate(`/documents/${doc.id}`)}
-                    onEdit={() => navigate(`/documents/${doc.id}/edit`)}
-                    onDelete={() => remove(doc.id)}
-                  />
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableWrapper>
-      )}
-    </div>
-  );
-}
-
-
-export function DocumentDetailPage(){
-  const {id}=useParams(); const navigate=useNavigate(); const {item,loading,error}=useApiDetail(`${endpoints.documents}${id}/`,[id]);
-  const remove=async()=>{if(!confirm('Delete document?'))return; await api.remove(`${endpoints.documents}${id}/`); navigate('/documents');};
-  if(loading)return <LoadingCard/>; if(error)return <Notice type="error">{error}</Notice>; if(!item)return null;
-  return <div><Breadcrumb items={['Dashboard','Documents',item.name]}/><PageHeader title={item.name} sub={item.description || 'Document detail'} action={<><Btn variant="outline" onClick={()=>navigate('/documents')}>← Back</Btn><DownloadButton url={getDocumentUrl(item)}/><Btn variant="outline" onClick={()=>navigate(`/documents/${id}/edit`)}>Edit</Btn><Btn variant="danger" onClick={remove}>Delete</Btn></>}/>
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}><Card><SectionTitle>Document</SectionTitle>{[['Category',item.category_name],['Job',item.job_name],['Freelance Source',item.freelance_source_name],['Project',item.project_name],['Path',item.document_path],['External URL',item.external_url],['Active',boolText(item.is_active)]].map(([l,v])=><div key={l} style={{display:'flex',justifyContent:'space-between',gap:16,padding:'10px 0',borderBottom:`1px solid ${T.border}`}}><span style={{fontSize:12,color:T.slateLight,fontWeight:700}}>{l}</span><span style={{fontSize:13,color:T.navy,fontWeight:600,textAlign:'right',wordBreak:'break-word'}}>{v || '—'}</span></div>)}</Card><Card><SectionTitle>Quick Access</SectionTitle><div style={{display:'grid',gap:10}}><DownloadButton url={getDocumentUrl(item)} label="Download Document" style={{justifyContent:'center'}} />{getDocumentUrl(item) && <a href={getDocumentUrl(item)} target="_blank" rel="noreferrer"><Btn variant="gold" style={{justifyContent:'center',width:'100%'}}>Open Preview</Btn></a>}</div></Card></div>
+export function DocumentListPage(){
+  const navigate=useNavigate();const boot=useBootstrap();const mobile=useIsMobile();const [searchParams,setSearchParams]=useSearchParams();
+  const listOpen=searchParams.get('view')==='list';const category=searchParams.get('category')||'';
+  const [documents,setDocuments]=useState([]);const [loading,setLoading]=useState(false);const [error,setError]=useState('');
+  const categories=boot.documentCategories||[];const categoryLabel=cat=>cat?.parent_name?`${cat.parent_name} / ${cat.name}`:cat?.name||'Uncategorized';const selectedCategory=categories.find(c=>String(c.id)===String(category));
+  const loadDocuments=async(categoryId='')=>{setLoading(true);setError('');try{setDocuments(asList(await api.list(endpoints.documents,categoryId?{category:categoryId}:{})));}catch(err){setError(getErrorMessage(err));setDocuments([]);}finally{setLoading(false);}};
+  useEffect(()=>{if(listOpen)loadDocuments(category);},[listOpen,category]);
+  const openList=categoryId=>setSearchParams({view:'list',...(categoryId?{category:String(categoryId)}:{})});const backToFolders=()=>setSearchParams({});
+  const remove=async id=>{if(!confirm('Delete document?'))return;await api.remove(`${endpoints.documents}${id}/`);loadDocuments(category);};
+  const detailUrl=doc=>`/documents/${doc.id}?from=list${category?`&category=${category}`:''}`;
+  const folderCard=(key,label,sub,onClick,iconUrl)=><button key={key} type="button" onClick={onClick} style={{textAlign:'left',border:`1px solid ${T.border}`,background:T.white,borderRadius:12,padding:14,cursor:'pointer',minHeight:96,display:'flex',alignItems:'center',gap:12}}><div style={{width:48,height:48,borderRadius:10,background:T.navyTint,color:T.navy,display:'inline-flex',alignItems:'center',justifyContent:'center',overflow:'hidden',flexShrink:0}}>{iconUrl?<img src={resolveAssetUrl(iconUrl)} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<Icon name="folder" size={24}/>}</div><div><strong style={{color:T.navy,fontSize:14,lineHeight:1.25}}>{label}</strong><div style={{fontSize:12,color:T.slateLight,marginTop:5}}>{sub}</div></div></button>;
+  if(!listOpen)return <div><PageHeader title="Documents" sub="Choose a category folder or open all documents." action={<Btn variant="gold" onClick={()=>navigate('/documents/new')}><Icon name="plus" size={15}/> Add Document</Btn>}/><Card><SectionTitle>Document Folders</SectionTitle><div style={{display:'grid',gridTemplateColumns:mobile?'1fr':'repeat(auto-fill,minmax(230px,1fr))',gap:12}}>{folderCard('all','All Documents','View every document',()=>openList(''))}{categories.map(cat=>folderCard(cat.id,categoryLabel(cat),cat.parent_name?'Sub-folder':'Category folder',()=>openList(cat.id),cat.icon_url))}</div></Card></div>;
+  return <div><PageHeader title={category?categoryLabel(selectedCategory):'All Documents'} sub={category?'Documents in the selected category':'Showing all documents'} action={<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Btn variant="outline" onClick={backToFolders}><Icon name="arrowLeft" size={15}/> Folders</Btn><Btn variant="gold" onClick={()=>navigate(`/documents/new?returnCategory=${category}`)}><Icon name="plus" size={15}/> Add Document</Btn></div>}/>
+    <Card style={{marginBottom:16}}><div style={{display:'grid',gridTemplateColumns:mobile?'1fr':'minmax(260px,380px) auto',gap:12,alignItems:'end'}}><Select label="Filter by Category" value={category} onChange={e=>openList(e.target.value)} options={[[ '', 'All Documents' ],...categories.map(cat=>[String(cat.id),categoryLabel(cat)])]}/><div style={{fontSize:12,color:T.slateLight,paddingBottom:9}}>{loading?'Loading documents...':`${documents.length} document${documents.length===1?'':'s'} found`}</div></div></Card>
+    {error&&<Notice type="error">{error}</Notice>}{loading?<LoadingCard/>:!documents.length?<EmptyState icon={<Icon name="files" size={38}/>} title="No documents found" sub={category?'This folder has no documents yet.':'No documents available.'} action={<Btn variant="gold" onClick={()=>navigate(`/documents/new?returnCategory=${category}`)}><Icon name="plus" size={15}/> Add Document</Btn>}/>:<div style={{overflowX:'auto'}}><TableWrapper><thead><tr><Th>Name</Th><Th>Category</Th><Th>Source</Th><Th>Files</Th><Th>Status</Th><Th>Actions</Th></tr></thead><tbody>{documents.map((doc,i)=><tr key={doc.id} onClick={()=>navigate(detailUrl(doc))} style={{cursor:'pointer'}}><Td alt={i%2}><strong style={{color:T.navy}}>{doc.name}</strong><br/><span style={{fontSize:11,color:T.slateLight}}>{doc.description||'—'}</span></Td><Td alt={i%2}>{doc.category_name||'—'}</Td><Td alt={i%2}>{doc.job_name||doc.freelance_source_name||doc.project_name||'General'}</Td><Td alt={i%2}>{allDocumentFiles(doc).length}</Td><Td alt={i%2}><Badge label={boolText(doc.is_active)} color={doc.is_active===false?'slate':'success'}/></Td><Td alt={i%2}><ActionCell onView={()=>navigate(detailUrl(doc))} onEdit={()=>navigate(`/documents/${doc.id}/edit?from=list&category=${category}`)} onDelete={()=>remove(doc.id)}/></Td></tr>)}</tbody></TableWrapper></div>}
   </div>;
 }
 
-export function DocumentFormPage() {
-  const { id } = useParams();
-  const edit = Boolean(id);
-  const navigate = useNavigate();
-  const boot = useBootstrap();
-
-  const defaultForm = {
-    name: "",
-    description: "",
-    category: "",
-    job: "",
-    freelance_source: "",
-    project: "",
-    document_file: null,
-    external_url: "",
-    is_active: true,
-  };
-
-  const [form, setForm] = useState(defaultForm);
-  const initialFormRef = useRef(dirtyString(defaultForm));
-  const [loading, setLoading] = useState(edit);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!edit) return;
-
-    setLoading(true);
-
-    api
-      .get(`${endpoints.documents}${id}/`)
-      .then((item) => {
-        const next = {
-          ...item,
-          category: item.category || "",
-          job: item.job || "",
-          freelance_source: item.freelance_source || "",
-          project: item.project || "",
-          document_file: null,
-          is_active: item.is_active !== false,
-        };
-
-        initialFormRef.current = dirtyString(next);
-        setForm(next);
-      })
-      .catch((e) => setError(getErrorMessage(e)))
-      .finally(() => setLoading(false));
-  }, [id, edit]);
-
-  const isDirty = dirtyString(form) !== initialFormRef.current;
-
-  const save = async () => {
-    const fd = new FormData();
-    const fields = [
-      "name",
-      "description",
-      "category",
-      "job",
-      "freelance_source",
-      "project",
-      "external_url",
-    ];
-
-    fields.forEach((k) => {
-      if (form[k] !== undefined && form[k] !== null && form[k] !== "") {
-        fd.append(k, form[k]);
-      }
-    });
-
-    fd.append("is_active", form.is_active ? "true" : "false");
-
-    if (form.document_file instanceof File) {
-      fd.append("document_file", form.document_file);
-    }
-
-    if (edit) {
-      await api.uploadUpdate(`${endpoints.documents}${id}/`, fd);
-    } else {
-      await api.upload(endpoints.documents, fd);
-    }
-
-    initialFormRef.current = dirtyString(form);
-    navigate("/documents");
-  };
-
-  if (loading) return <LoadingCard />;
-
-  return (
-    <WizardForm
-      title={edit ? "Edit Document" : "Add Document"}
-      back={edit ? `/documents/${id}` : "/documents"}
-      save={save}
-      dirty={isDirty}
-    >
-      {error && <Notice type="error">{error}</Notice>}
-
-      <FormGrid>
-        <Input
-          label="Name"
-          required
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-
-        <RelationSelect
-          label="Category"
-          value={form.category}
-          onChange={(v) => setForm({ ...form, category: v })}
-          items={boot.documentCategories || []}
-          blank="— Select Category —"
-        />
-
-        <SourceFields form={form} setForm={setForm} boot={boot} />
-
-        <Select
-          label="Active"
-          value={String(form.is_active)}
-          onChange={(e) =>
-            setForm({ ...form, is_active: e.target.value === "true" })
-          }
-          options={[
-            ["true", "Active"],
-            ["false", "Inactive"],
-          ]}
-        />
-
-        <Textarea
-          label="Description"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-        />
-
-        <Input
-          label="External URL"
-          value={form.external_url || ""}
-          onChange={(e) => setForm({ ...form, external_url: e.target.value })}
-          placeholder="Optional Google Drive / live link"
-        />
-
-        <Input
-          label={edit ? "Replace Document File" : "Document File"}
-          type="file"
-          onChange={(e) =>
-            setForm({ ...form, document_file: e.target.files?.[0] || null })
-          }
-        />
-
-        {edit && form.document_url && (
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: T.slate }}>
-              Current File
-            </label>
-            <div style={{ marginTop: 6 }}>
-              <DownloadButton url={getDocumentUrl(form)} />
-            </div>
-          </div>
-        )}
-      </FormGrid>
-    </WizardForm>
-  );
+export function DocumentDetailPage(){
+  const {id}=useParams();const navigate=useNavigate();const [searchParams]=useSearchParams();const {item,loading,error,reload}=useApiDetail(`${endpoints.documents}${id}/`,[id]);const mobile=useIsMobile();
+  const category=searchParams.get('category')||'';const backUrl=searchParams.get('from')==='list'?`/documents?view=list${category?`&category=${category}`:''}`:'/documents';
+  const remove=async()=>{if(!confirm('Delete document?'))return;await api.remove(`${endpoints.documents}${id}/`);navigate(backUrl);};
+  const deleteExtra=async fileId=>{if(!confirm('Delete this uploaded file?'))return;await api.remove(`${endpoints.documents}${id}/files/${fileId}/`);reload();};
+  if(loading)return <LoadingCard/>;if(error)return <Notice type="error">{error}</Notice>;if(!item)return null;const files=allDocumentFiles(item);
+  return <div><Breadcrumb items={['Dashboard','Documents',item.name]}/><PageHeader title={item.name} sub={item.description||'Document detail'} action={<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Btn variant="outline" onClick={()=>navigate(backUrl)}><Icon name="arrowLeft" size={15}/> Back to Documents</Btn><Btn variant="outline" onClick={()=>navigate(`/documents/${id}/edit?from=list&category=${category}`)}><Icon name="edit" size={15}/> Edit</Btn><Btn variant="danger" onClick={remove}><Icon name="trash" size={15}/> Delete</Btn></div>}/>
+    <div style={{display:'grid',gridTemplateColumns:mobile?'1fr':'minmax(0,1fr) minmax(300px,.7fr)',gap:18}}><Card><SectionTitle>Document Information</SectionTitle>{[['Category',item.category_name],['Job',item.job_name],['Freelance Source',item.freelance_source_name],['Project',item.project_name],['External URL',item.external_url],['Active',boolText(item.is_active)]].map(([l,v])=><div key={l} style={{display:'flex',justifyContent:'space-between',gap:16,padding:'10px 0',borderBottom:`1px solid ${T.border}`}}><span style={{fontSize:12,color:T.slateLight,fontWeight:700}}>{l}</span><span style={{fontSize:13,color:T.navy,fontWeight:600,textAlign:'right',wordBreak:'break-word'}}>{v||'—'}</span></div>)}</Card><Card><SectionTitle>Files ({files.length})</SectionTitle><div style={{display:'grid',gap:10}}>{files.map(file=><div key={file.id} style={{border:`1px solid ${T.border}`,borderRadius:10,padding:10,display:'flex',alignItems:'center',gap:10}}><Icon name={file.external?'share':'file'} size={20} style={{color:T.navy}}/><div style={{minWidth:0,flex:1,fontSize:12,fontWeight:700,color:T.navy,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{file.name}</div><DownloadButton url={file.url} label={file.external?'Open':'Download'} download={!file.external} style={{padding:'5px 8px',fontSize:11}}/>{!file.legacy&&!file.external&&<Btn variant="danger" onClick={()=>deleteExtra(file.id)} style={{padding:'6px'}}><Icon name="trash" size={14}/></Btn>}</div>)}{!files.length&&<div style={{fontSize:12,color:T.slateLight}}>No file available.</div>}</div></Card></div>
+  </div>;
 }
 
+export function DocumentFormPage(){
+  const {id}=useParams();const edit=Boolean(id);const navigate=useNavigate();const [searchParams]=useSearchParams();const boot=useBootstrap();const returnCategory=searchParams.get('category')||searchParams.get('returnCategory')||'';
+  const defaultForm={name:'',description:'',category:returnCategory,job:'',freelance_source:'',project:'',document_file:null,uploaded_files:[],external_url:'',is_active:true};
+  const [form,setForm]=useState(defaultForm);const initialFormRef=useRef(dirtyString(defaultForm));const [loading,setLoading]=useState(edit);const [error,setError]=useState('');
+  useEffect(()=>{if(!edit)return;setLoading(true);api.get(`${endpoints.documents}${id}/`).then(item=>{const next={...item,category:item.category||'',job:item.job||'',freelance_source:item.freelance_source||'',project:item.project||'',document_file:null,uploaded_files:[],is_active:item.is_active!==false};initialFormRef.current=dirtyString(next);setForm(next);}).catch(e=>setError(getErrorMessage(e))).finally(()=>setLoading(false));},[id,edit]);
+  const isDirty=dirtyString(form)!==initialFormRef.current;
+  const save=async()=>{try{const fd=new FormData();['name','description','category','job','freelance_source','project','external_url'].forEach(k=>{if(form[k]!==undefined&&form[k]!==null&&form[k]!=='')fd.append(k,form[k]);});fd.append('is_active',form.is_active?'true':'false');if(form.document_file instanceof File)fd.append('document_file',form.document_file);(form.uploaded_files||[]).forEach(file=>fd.append('uploaded_files',file));if(edit)await api.uploadUpdate(`${endpoints.documents}${id}/`,fd);else await api.upload(endpoints.documents,fd);initialFormRef.current=dirtyString(form);navigate(`/documents?view=list${form.category?`&category=${form.category}`:''}`);}catch(e){setError(getErrorMessage(e));}};
+  if(loading)return <LoadingCard/>;
+  return <WizardForm title={edit?'Edit Document':'Add Document'} back={edit?`/documents/${id}?from=list&category=${returnCategory}`:`/documents?view=list${returnCategory?`&category=${returnCategory}`:''}`} save={save} dirty={isDirty}>{error&&<Notice type="error">{error}</Notice>}<FormGrid>
+    <Input label="Name" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><RelationSelect label="Category" value={form.category} onChange={v=>setForm({...form,category:v})} items={boot.documentCategories||[]} blank="Select Category"/>
+    <SourceFields form={form} setForm={setForm} boot={boot}/><Select label="Active" value={String(form.is_active)} onChange={e=>setForm({...form,is_active:e.target.value==='true'})} options={[[ 'true','Active' ],[ 'false','Inactive' ]]}/><Textarea label="Description" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/><Input label="External URL" value={form.external_url||''} onChange={e=>setForm({...form,external_url:e.target.value})} placeholder="Optional external link"/>
+    <Input label={edit?'Replace Legacy Primary File':'Legacy Primary File (Optional)'} type="file" onChange={e=>setForm({...form,document_file:e.target.files?.[0]||null})}/><Input label="Upload Multiple Files" type="file" multiple onChange={e=>setForm({...form,uploaded_files:Array.from(e.target.files||[])})} style={{height:42}}/>
+    <div style={{gridColumn:'1 / -1',fontSize:11,color:T.slateLight}}>Use the multiple-file field for new uploads. The legacy primary file remains supported so existing document data is not lost.</div>
+    {form.uploaded_files?.length>0&&<div style={{gridColumn:'1 / -1',display:'grid',gap:6}}>{form.uploaded_files.map(file=><div key={`${file.name}-${file.size}`} style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:T.navy}}><Icon name="file" size={15}/>{file.name}</div>)}</div>}
+    {edit&&allDocumentFiles(form).length>0&&<div style={{gridColumn:'1 / -1'}}><SectionTitle>Current Files</SectionTitle><div style={{display:'grid',gap:8}}>{allDocumentFiles(form).map(file=><div key={file.id} style={{display:'flex',alignItems:'center',gap:8}}><Icon name="file" size={15}/><span style={{fontSize:12,color:T.navy,flex:1}}>{file.name}</span><DownloadButton url={file.url} style={{fontSize:11,padding:'5px 8px'}}/></div>)}</div></div>}
+  </FormGrid></WizardForm>;
+}
 
 /* Leave */
 export function LeaveListPage(){ const navigate=useNavigate(); const {items,loading,error,reload}=useApiList(endpoints.leave); const remove=async(id)=>{if(!confirm('Delete leave?'))return; await api.remove(`/leave/${id}/`); reload();}; return <ListShell title="Leave / Holiday / Half Day" sub="Calendar/list data from backend" add="＋ Log Leave" onAdd={()=>navigate('/leave/new')} error={error} loading={loading}><TableWrapper><thead><tr><Th>Company</Th><Th>Date</Th><Th>Type</Th><Th>Paid</Th><Th>Deduction</Th><Th>Status</Th><Th>Actions</Th></tr></thead><tbody>{items.map((x,i)=><tr key={x.id}><Td alt={i%2}>{x.company_name}</Td><Td alt={i%2}>{x.date}</Td><Td alt={i%2}>{nice(x.leave_type)}</Td><Td alt={i%2}>{x.is_paid?'Paid':'Unpaid'}</Td><Td alt={i%2}>{money(x.deduction_amount)}</Td><Td alt={i%2}><StatusBadge status={x.status}/></Td><Td alt={i%2}><ActionCell onDelete={()=>remove(x.id)}/></Td></tr>)}</tbody></TableWrapper></ListShell> }
@@ -1422,7 +1116,7 @@ export function AddLeavePage() {
 }
 
 /* Salary */
-export function SalaryListPage(){ const navigate=useNavigate(); const {items,loading,error}=useApiList(endpoints.salary); const totals=items.reduce((a,x)=>({expected:a.expected+Number(x.expected_amount||0),received:a.received+Number(x.received_amount||0),pending:a.pending+Number(x.pending_amount||0)}),{expected:0,received:0,pending:0}); return <div><PageHeader title="Salary / Payments" sub="Expected vs received vs pending" action={<Btn variant="gold" onClick={()=>navigate('/salary/new')}>＋ Record Salary</Btn>}/><div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:16}}>{[['Expected',totals.expected],['Received',totals.received],['Pending',totals.pending]].map(([k,v])=><Card key={k}><SectionTitle>{k}</SectionTitle><div style={{fontSize:26,fontWeight:900,color:T.navy}}>{money(v)}</div></Card>)}</div>{error&&<Notice type="error">{error}</Notice>}{loading?<LoadingCard/>:<TableWrapper><thead><tr><Th>Month</Th><Th>Source</Th><Th>Expected</Th><Th>Received</Th><Th>Pending</Th><Th>Status</Th><Th>Date</Th></tr></thead><tbody>{items.map((x,i)=><tr key={x.id} onClick={()=>navigate(`/salary/${x.id}`)} style={{cursor:'pointer'}}><Td alt={i%2}>{x.month}</Td><Td alt={i%2}>{sourceText(x)}</Td><Td alt={i%2}>{money(x.expected_amount)}</Td><Td alt={i%2}>{money(x.received_amount)}</Td><Td alt={i%2}>{money(x.pending_amount)}</Td><Td alt={i%2}><StatusBadge status={x.status}/></Td><Td alt={i%2}>{x.received_date||'—'}</Td></tr>)}</tbody></TableWrapper>}</div> }
+export function SalaryListPage(){ const navigate=useNavigate(); const {items,loading,error}=useApiList(endpoints.salary); const totals=items.reduce((a,x)=>({expected:a.expected+Number(x.expected_amount||0),received:a.received+Number(x.received_amount||0),pending:a.pending+Number(x.pending_amount||0)}),{expected:0,received:0,pending:0}); return <div><PageHeader title="Salary / Payments" sub="Expected vs received vs pending" action={<Btn variant="gold" onClick={()=>navigate('/salary/new')}>＋ Record Salary</Btn>}/><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:14,marginBottom:16}}>{[['Expected',totals.expected],['Received',totals.received],['Pending',totals.pending]].map(([k,v])=><Card key={k}><SectionTitle>{k}</SectionTitle><div style={{fontSize:26,fontWeight:900,color:T.navy}}>{money(v)}</div></Card>)}</div>{error&&<Notice type="error">{error}</Notice>}{loading?<LoadingCard/>:<TableWrapper><thead><tr><Th>Month</Th><Th>Source</Th><Th>Expected</Th><Th>Received</Th><Th>Pending</Th><Th>Status</Th><Th>Date</Th></tr></thead><tbody>{items.map((x,i)=><tr key={x.id} onClick={()=>navigate(`/salary/${x.id}`)} style={{cursor:'pointer'}}><Td alt={i%2}>{x.month}</Td><Td alt={i%2}>{sourceText(x)}</Td><Td alt={i%2}>{money(x.expected_amount)}</Td><Td alt={i%2}>{money(x.received_amount)}</Td><Td alt={i%2}>{money(x.pending_amount)}</Td><Td alt={i%2}><StatusBadge status={x.status}/></Td><Td alt={i%2}>{x.received_date||'—'}</Td></tr>)}</tbody></TableWrapper>}</div> }
 export function SalaryDetailPage(){ const {id}=useParams(); const {item,loading,error}=useApiDetail(`/salary/${id}/`,[id]); if(loading)return <LoadingCard/>; if(error)return <Notice type="error">{error}</Notice>; return <RecordDetail title={`Salary ${item.month}`} back="/salary" badges={<StatusBadge status={item.status}/>} sections={[[ 'Summary', [['Source',sourceText(item)],['Expected',money(item.expected_amount)],['Received',money(item.received_amount)],['Pending',money(item.pending_amount)],['Received Date',item.received_date],['Notes',item.notes]] ],[ 'Calculation Lines',(item.calculation_lines||[]).map((x,i)=>[`Line ${i+1}`,`${x.from_date} to ${x.to_date} · ${x.days} days · ${money(x.amount)}`]) ]]}/> }
 export function AddSalaryPage(){
   const navigate=useNavigate();
@@ -1576,7 +1270,7 @@ export function SendEmailPage(){
 }
 
 /* Reports */
-export function ReportsPage(){ const {category}=useParams(); const [data,setData]=useState(null); const [error,setError]=useState(''); const cats=['tasks','meetings','salary','leave','emails','employees','designations']; useEffect(()=>{api.get(category?`/reports/${category}/`:'/reports/').then(setData).catch(e=>setError(getErrorMessage(e)));},[category]); return <div><PageHeader title={category?`${nice(category)} Report`:'Reports'} sub="Report hub and category reports" />{error&&<Notice type="error">{error}</Notice>}{!category?<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>{cats.map(c=><Card key={c} style={{cursor:'pointer'}}><a href={`/reports/${c}`}><div style={{fontSize:30,marginBottom:8}}>📊</div><h3 style={{color:T.navy}}>{nice(c)} Reports</h3><p style={{fontSize:12,color:T.slateLight,marginTop:6}}>Open {nice(c)} report</p></a></Card>)}</div>:<Card><pre style={{whiteSpace:'pre-wrap',fontSize:13,color:T.slate}}>{JSON.stringify(data,null,2)}</pre></Card>}</div>; }
+export function ReportsPage(){ const {category}=useParams(); const [data,setData]=useState(null); const [error,setError]=useState(''); const cats=['tasks','meetings','salary','leave','emails','employees','designations']; useEffect(()=>{api.get(category?`/reports/${category}/`:'/reports/').then(setData).catch(e=>setError(getErrorMessage(e)));},[category]); return <div><PageHeader title={category?`${nice(category)} Report`:'Reports'} sub="Report hub and category reports" />{error&&<Notice type="error">{error}</Notice>}{!category?<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:16}}>{cats.map(c=><Card key={c} style={{cursor:'pointer'}}><a href={`/reports/${c}`}><div style={{color:T.navy,marginBottom:8}}><Icon name="chart" size={30}/></div><h3 style={{color:T.navy}}>{nice(c)} Reports</h3><p style={{fontSize:12,color:T.slateLight,marginTop:6}}>Open {nice(c)} report</p></a></Card>)}</div>:<Card><pre style={{whiteSpace:'pre-wrap',fontSize:13,color:T.slate}}>{JSON.stringify(data,null,2)}</pre></Card>}</div>; }
 
 /* Management */
 const managementConfigs = {
@@ -1589,7 +1283,7 @@ const managementConfigs = {
   'email-variables': { title:'Email Variables', path:endpoints.emailVariables, add:'Add Variable', fields:[['key','Variable Key'],['label','Display Label'],['category','Category','select',[[ 'common','Common' ],[ 'person','Person / Recipient' ],[ 'job','Job' ],[ 'project','Project' ],[ 'task','Task' ],[ 'meeting','Meeting / MOM' ],[ 'leave','Leave' ],[ 'salary','Salary / Payment' ],[ 'custom','Custom' ]]],['default_value','Example / Default Value'],['is_required','Required While Sending','boolean'],['is_active','Active','boolean'],['description','Description','textarea']] },
   designations: { title:'Designation History', path:endpoints.designations, add:'Add Designation', fields:[['job','Job','relation:jobs'],['old_designation','Old Designation'],['new_designation','New Designation'],['effective_date','Effective Date','date'],['reason','Reason','textarea']] },
   'salary-changes': { title:'Salary Changes', path:endpoints.salaryChanges, add:'Add Salary Change', fields:[['job','Job','relation:jobs'],['old_amount','Old Amount','number'],['new_amount','New Amount','number'],['effective_date','Effective Date','date'],['reason','Reason','textarea']] },
-  'document-categories': { title:'Document Categories', path:endpoints.documentCategories, add:'Add Document Category', fields:[['name','Name'],['parent','Parent Category','relation:documentCategories'],['description','Description','textarea'],['is_active','Active','boolean']] },
+  'document-categories': { title:'Document Categories', path:endpoints.documentCategories, add:'Add Document Category', fields:[['name','Name'],['parent','Parent Category','relation:documentCategories'],['description','Description','textarea'],['icon_image','Category Icon Image','file'],['is_active','Active','boolean']] },
 };export function ManagementPage(){ const {section='jobs'}=useParams(); const config=managementConfigs[section]||managementConfigs.jobs; const boot=useBootstrap(); const {items,loading,error,reload}=useApiList(config.path, {}, [section]); const [open,setOpen]=useState(false); const [editing,setEditing]=useState(null); const remove=async(id)=>{if(!confirm('Delete record?'))return; await api.remove(`${config.path}${id}/`); reload();}; return <div><PageHeader title={config.title} sub="Management setup page" action={<Btn variant="gold" onClick={()=>{setEditing(null);setOpen(true);}}>＋ {config.add}</Btn>}/>{error&&<Notice type="error">{error}</Notice>}{loading?<LoadingCard/>:<TableWrapper><thead><tr><Th>ID</Th><Th>Main</Th><Th>Status/Type</Th><Th>Created</Th><Th>Actions</Th></tr></thead><tbody>{items.map((x,i)=><tr key={x.id}><Td alt={i%2}>{x.id}</Td><Td alt={i%2}><strong style={{color:T.navy}}>{x.company_name||x.name||x.title||x.subject||x.host||x.new_designation||`Record ${x.id}`}</strong><br/><span style={{fontSize:11,color:T.slateLight}}>{x.job_title||x.email||x.description||x.notes||''}</span></Td><Td alt={i%2}>{x.status?<StatusBadge status={x.status}/>:<Badge label={x.member_type||x.source_type||x.code||'Active'} color="navy"/>}</Td><Td alt={i%2}>{x.created_at||'—'}</Td><Td alt={i%2}><ActionCell onEdit={()=>{setEditing(x);setOpen(true);}} onDelete={()=>remove(x.id)}/></Td></tr>)}</tbody></TableWrapper>}<CrudModal open={open} onClose={()=>setOpen(false)} config={config} item={editing} boot={boot} onSaved={()=>{setOpen(false);reload();}} /></div>; }
 function CrudModal({ open, onClose, config, item, boot, onSaved }) {
   const [form, setForm] = useState({});
@@ -1646,11 +1340,14 @@ function CrudModal({ open, onClose, config, item, boot, onSaved }) {
       Object.assign(defaults, {
         parent: "",
         description: "",
+        icon_image: null,
         is_active: true,
       });
     }
 
-    const next = item ? { ...item } : defaults;
+    const next = item
+      ? { ...item, ...(config.title === "Document Categories" ? { icon_image: null } : {}) }
+      : defaults;
 
     initialFormRef.current = dirtyString(next);
     setForm(next);
@@ -1867,11 +1564,10 @@ function CrudModal({ open, onClose, config, item, boot, onSaved }) {
     }
 
     if (config.title === "Document Categories") {
-      if (data.parent === "") {
-        data.parent = null;
-      }
-
+      if (data.parent === "") data.parent = null;
       data.is_active = data.is_active === true || data.is_active === "true";
+      if (!(data.icon_image instanceof File)) delete data.icon_image;
+      ["id", "parent_name", "icon_url", "created_at", "updated_at"].forEach((key) => delete data[key]);
     }
 
     return data;
@@ -1881,7 +1577,14 @@ function CrudModal({ open, onClose, config, item, boot, onSaved }) {
     try {
       const payload = cleanedPayload();
 
-      if (config.title === "Attachments" && payload.file instanceof File) {
+      if (config.title === "Document Categories" && payload.icon_image instanceof File) {
+        const fd = new FormData();
+        Object.entries(payload).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== "") fd.append(k, v);
+        });
+        if (item?.id) await api.uploadUpdate(`${config.path}${item.id}/`, fd);
+        else await api.upload(config.path, fd);
+      } else if (config.title === "Attachments" && payload.file instanceof File) {
         const fd = new FormData();
 
         Object.entries(payload).forEach(([k, v]) => {
@@ -1974,12 +1677,10 @@ function CrudModal({ open, onClose, config, item, boot, onSaved }) {
 
             if (type === "file") {
               return (
-                <Input
-                  key={name}
-                  label={label}
-                  type="file"
-                  onChange={(e) => set(name, e.target.files?.[0])}
-                />
+                <div key={name}>
+                  <Input label={label} type="file" onChange={(e) => set(name, e.target.files?.[0] || null)} />
+                  {form.icon_url && <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: T.slateLight }}><img src={resolveAssetUrl(form.icon_url)} alt="Current category icon" style={{ width: 34, height: 34, objectFit: "cover", borderRadius: 8 }} /> Current icon</div>}
+                </div>
               );
             }
 
@@ -2064,6 +1765,7 @@ function CrudModal({ open, onClose, config, item, boot, onSaved }) {
                 />
               );
             }
+
 
             return (
               <Input
@@ -2167,7 +1869,7 @@ function EmailTemplateBodyBuilder({ label, value, onChange, variables = [], onCr
 function WorkingDaysPicker({ label, value, onChange }){
   const selected=(value||defaultWorkingDays).map(Number);
   const toggle=(day)=>{ const active=selected.includes(day); onChange(active ? selected.filter(x=>x!==day) : [...selected,day].sort()); };
-  return <div><label style={{fontSize:12,fontWeight:600,color:T.slate}}>{label}</label><div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:6}}>{workingDayOptions.map(([day,name])=><button key={day} type="button" onClick={()=>toggle(day)} style={{border:`1px solid ${selected.includes(day)?T.gold:T.border}`,background:selected.includes(day)?T.goldLight:T.white,color:selected.includes(day)?T.goldDark:T.slate,padding:'7px 10px',borderRadius:18,fontSize:12,cursor:'pointer'}}>{selected.includes(day)?'✓ ':''}{name.slice(0,3)}</button>)}</div><div style={{fontSize:11,color:T.slateLight,marginTop:6}}>Current: {workingDayLabel(selected)}</div></div>;
+  return <div><label style={{fontSize:12,fontWeight:600,color:T.slate}}>{label}</label><div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:6}}>{workingDayOptions.map(([day,name])=><button key={day} type="button" onClick={()=>toggle(day)} style={{border:`1px solid ${selected.includes(day)?T.gold:T.border}`,background:selected.includes(day)?T.goldLight:T.white,color:selected.includes(day)?T.goldDark:T.slate,padding:'7px 10px',borderRadius:18,fontSize:12,cursor:'pointer'}}>{selected.includes(day)&&<Icon name="check" size={13} style={{marginRight:4}}/>}{name.slice(0,3)}</button>)}</div><div style={{fontSize:11,color:T.slateLight,marginTop:6}}>Current: {workingDayLabel(selected)}</div></div>;
 }
 
 export function SettingsPage(){ const [me,setMe]=useState(null); const [msg,setMsg]=useState(''); const [err,setErr]=useState(''); const [pw,setPw]=useState({old_password:'',new_password:''}); useEffect(()=>{api.auth.me().then(setMe).catch(e=>setErr(getErrorMessage(e)));},[]); const saveProfile=async()=>{try{const res=await api.auth.updateMe(me); setMe(res); setMsg('Profile saved.');}catch(e){setErr(getErrorMessage(e));}}; const savePw=async()=>{try{await api.auth.changePassword(pw); setMsg('Password changed.'); setPw({old_password:'',new_password:''});}catch(e){setErr(getErrorMessage(e));}}; if(!me)return <LoadingCard/>; return <div><PageHeader title="Settings" sub="Profile, password and preferences" />{msg&&<Notice type="success">{msg}</Notice>}{err&&<Notice type="error">{err}</Notice>}<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}><Card><SectionTitle>Profile</SectionTitle><div style={{display:'grid',gap:12}}><Input label="Full Name" value={me.full_name||''} onChange={e=>setMe({...me,full_name:e.target.value})}/><Input label="Phone" value={me.phone||''} onChange={e=>setMe({...me,phone:e.target.value})}/><Input label="Email" value={me.email||''} onChange={()=>{}}/><Btn variant="gold" onClick={saveProfile}>Save Profile</Btn></div></Card><Card><SectionTitle>Change Password</SectionTitle><div style={{display:'grid',gap:12}}><Input label="Old Password" type="password" value={pw.old_password} onChange={e=>setPw({...pw,old_password:e.target.value})}/><Input label="New Password" type="password" value={pw.new_password} onChange={e=>setPw({...pw,new_password:e.target.value})}/><Btn variant="gold" onClick={savePw}>Change Password</Btn></div></Card></div></div>; }

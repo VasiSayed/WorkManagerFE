@@ -3,12 +3,13 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { T } from '../theme';
 import { api, getAccessToken, getErrorMessage } from '../api/client';
 import { Btn, Card, Input } from '../components/UI';
+import { Icon } from '../components/Icons';
 
 function AuthShell({ title, subtitle, children }) {
   if (getAccessToken()) return <Navigate to="/dashboard" replace />;
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '45% 55%', background: T.cream }}>
-      <div style={{ background: T.navy, color: T.white, padding: 48, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+    <div className="auth-shell" style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '45% 55%', background: T.cream }}>
+      <div className="auth-intro" style={{ background: T.navy, color: T.white, padding: 48, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', width: 300, height: 300, borderRadius: '50%', background: 'rgba(201,168,76,.14)', top: -80, right: -80 }} />
         <div style={{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.06)', bottom: 60, left: 40 }} />
         <div style={{ position: 'relative' }}>
@@ -18,13 +19,13 @@ function AuthShell({ title, subtitle, children }) {
           </div>
           <div style={{ marginTop: 34, display: 'grid', gap: 12, maxWidth: 380 }}>
             {['One task, one click', 'User-wise private records', 'Dashboard + management in one backend'].map(x => (
-              <div key={x} style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.08)' }}>✓ {x}</div>
+              <div key={x} style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="check" size={16} /> {x}</div>
             ))}
           </div>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Card style={{ width: 440, padding: 32, boxShadow: '0 20px 60px rgba(27,42,74,.10)' }}>
+      <div className="auth-form-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Card style={{ width: 'min(440px, 100%)', padding: 32, boxShadow: '0 20px 60px rgba(27,42,74,.10)' }}>
           <h1 style={{ color: T.navy, fontSize: 26, marginBottom: 6 }}>{title}</h1>
           <p style={{ color: T.slateLight, fontSize: 13, marginBottom: 24 }}>{subtitle}</p>
           {children}

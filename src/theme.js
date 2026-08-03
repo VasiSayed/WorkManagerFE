@@ -27,10 +27,3 @@ export const PRIORITY_COLORS = {
   normal: T.info,
   low:    T.slateLight,
 };
-
-export const PRIORITY_ICONS = {
-  urgent: '🔴',
-  high:   '🟠',
-  normal: '🔵',
-  low:    '⚪',
-};

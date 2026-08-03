@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { T } from '../theme';
 import { mockTasks, mockEmployees } from '../data/mockData';
 import { PageHeader, FilterChips, TableWrapper, Th, Td, Btn, Badge, StatusBadge, PriorityBadge, TypeBadge, Card, SectionTitle, Breadcrumb, EmptyState } from '../components/UI';
+import { Icon } from '../components/Icons';
 
 /* ── TASK LIST ── */
 export function TaskList() {
@@ -24,7 +25,7 @@ export function TaskList() {
       />
       <FilterChips options={filters} active={filter} onChange={setFilter} />
       {filtered.length === 0 ? (
-        <EmptyState icon="✅" title="No tasks found" sub="Try a different filter or add a new task" action={<Btn variant="gold" onClick={() => navigate('/tasks/new')}>＋ Add Task</Btn>} />
+        <EmptyState icon="tasks" title="No tasks found" sub="Try a different filter or add a new task" action={<Btn variant="gold" onClick={() => navigate('/tasks/new')}>＋ Add Task</Btn>} />
       ) : (
         <TableWrapper>
           <thead>
@@ -92,7 +93,7 @@ export function TaskDetail() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Btn variant="outline" onClick={() => navigate('/tasks')}>← Back</Btn>
-          <Btn variant="outline" onClick={() => navigate(`/tasks/${id}/edit`)}>✏️ Edit</Btn>
+          <Btn variant="outline" onClick={() => navigate(`/tasks/${id}/edit`)}><Icon name="edit" size={14} /> Edit</Btn>
         </div>
       </div>
 
@@ -160,7 +161,7 @@ export function TaskDetail() {
           <Card style={{ padding: '16px 20px' }}>
             <SectionTitle>Attachments</SectionTitle>
             <div style={{ fontSize: 12, color: T.slateLight, padding: '12px 0', textAlign: 'center' }}>No attachments</div>
-            <Btn variant="outline" style={{ width: '100%', fontSize: 12, justifyContent: 'center' }}>📎 Upload File</Btn>
+            <Btn variant="outline" style={{ width: '100%', fontSize: 12, justifyContent: 'center' }}><Icon name="upload" size={14} /> Upload File</Btn>
           </Card>
         </div>
       </div>

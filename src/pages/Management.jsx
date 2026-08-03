@@ -6,6 +6,7 @@ import {
   PageHeader, Card, SectionTitle, Btn, Badge, StatusBadge,
   TableWrapper, Th, Td, Input, Select, Textarea, Breadcrumb, EmptyState, Modal
 } from '../components/UI';
+import { Icon } from '../components/Icons';
 
 /* ═══ JOBS ═══ */
 export function Jobs() {
@@ -38,7 +39,7 @@ export function Jobs() {
         <Card key={j.id} style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              <div style={{ width: 52, height: 52, borderRadius: 10, background: T.navyTint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>🏢</div>
+              <div style={{ width: 52, height: 52, borderRadius: 10, background: T.navyTint, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="building" size={24} /></div>
               <div>
                 <div style={{ fontSize: 17, fontWeight: 700, color: T.navy }}>{j.company}</div>
                 <div style={{ fontSize: 13, color: T.slateLight, marginBottom: 6 }}>{j.title} · {j.designation}</div>
@@ -128,7 +129,7 @@ export function Sources() {
         {mockSources.map(s => (
           <Card key={s.id}>
             <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 10, background: T.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>💼</div>
+              <div style={{ width: 48, height: 48, borderRadius: 10, background: T.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="briefcase" size={22} /></div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: T.navy }}>{s.name}</div>
                 <div style={{ fontSize: 12, color: T.slateLight }}>Contact: {s.client} · {s.platform}</div>
@@ -260,9 +261,9 @@ export function Employees() {
               <Badge label={e.type.charAt(0).toUpperCase() + e.type.slice(1)} color={TYPE_COLORS[e.type] || 'slate'} />
             </div>
             <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 10, fontSize: 12, color: T.slateLight, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div>🏢 {e.company}</div>
-              <div>✉️ {e.email}</div>
-              <div>📞 {e.phone}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="building" size={13} /> {e.company}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="mail" size={13} /> {e.email}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="message" size={13} /> {e.phone}</div>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               <Btn variant="outline" style={{ fontSize: 11, padding: '4px 9px' }}>Edit</Btn>
@@ -279,10 +280,10 @@ export function Employees() {
 export function Settings() {
   const [tab, setTab] = useState('profile');
   const TABS = [
-    ['profile', '👤 Profile'],
-    ['templates', '📋 Email Templates'],
-    ['password', '🔐 Password'],
-    ['prefs', '⚙️ Preferences'],
+    ['profile', 'user', 'Profile'],
+    ['templates', 'clipboard', 'Email Templates'],
+    ['password', 'lock', 'Password'],
+    ['prefs', 'settings', 'Preferences'],
   ];
 
   return (
@@ -291,14 +292,14 @@ export function Settings() {
       <div style={{ display: 'grid', gridTemplateColumns: '210px 1fr', gap: 20 }}>
         {/* Tab list */}
         <div style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: 12, padding: 8, height: 'fit-content' }}>
-          {TABS.map(([id, label]) => (
+          {TABS.map(([id, icon, label]) => (
             <div key={id} onClick={() => setTab(id)} style={{
               padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
               fontWeight: tab === id ? 600 : 400, color: tab === id ? T.gold : T.slate,
               background: tab === id ? T.goldLight : 'transparent',
               borderLeft: `3px solid ${tab === id ? T.gold : 'transparent'}`,
               transition: 'all .15s', marginBottom: 2,
-            }}>{label}</div>
+            }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name={icon} size={15} />{label}</span></div>
           ))}
         </div>
 
@@ -360,8 +361,8 @@ export function Settings() {
                 <Input label="Current Password" type="password" placeholder="••••••••" />
                 <Input label="New Password" type="password" placeholder="••••••••" />
                 <Input label="Confirm New Password" type="password" placeholder="••••••••" />
-                <div style={{ padding: '10px 14px', background: T.infoBg, borderRadius: 8, border: `1px solid #BFDBFE`, fontSize: 12, color: T.info }}>
-                  💡 Password must be at least 8 characters with a number and a special character
+                <div style={{ padding: '10px 14px', background: T.infoBg, borderRadius: 8, border: `1px solid #BFDBFE`, fontSize: 12, color: T.info, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Icon name="info" size={15} /> Password must be at least 8 characters with a number and a special character
                 </div>
                 <Btn variant="gold" style={{ width: 'fit-content' }}>Update Password</Btn>
               </div>

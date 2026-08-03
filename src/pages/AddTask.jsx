@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { T, PRIORITY_COLORS, PRIORITY_ICONS } from '../theme';
 import { parseNotepadMulti } from '../utils/parser';
 import { WizardBar, SelectCard, SourceCard, Card, Btn, Badge, StatusBadge, PriorityBadge, Modal } from '../components/UI';
+import { Icon } from '../components/Icons';
 
 const EMPTY_ROW = () => ({
   id: Date.now() + Math.random(),
@@ -24,8 +25,8 @@ export default function AddTask() {
   const goStep = (n) => setSearchParams({ step: n });
 
   const srcList = sel.type === 'job'
-    ? [{ id: 1, name: 'TechCorp Solutions', sub: 'Senior Dev', icon: '🏢' }]
-    : [{ id: 1, name: 'FreelanceHub', sub: 'Aakash Mehta', icon: '💻' }, { id: 2, name: 'ClientCo', sub: 'Sunita Kapoor', icon: '🎨' }];
+    ? [{ id: 1, name: 'TechCorp Solutions', sub: 'Senior Dev', icon: 'building' }]
+    : [{ id: 1, name: 'FreelanceHub', sub: 'Aakash Mehta', icon: 'briefcase' }, { id: 2, name: 'ClientCo', sub: 'Sunita Kapoor', icon: 'image' }];
 
   const prjList = sel.type === 'job'
     ? [{ id: 1, name: 'Payroll System' }, { id: 2, name: 'Task Manager' }]
@@ -60,7 +61,7 @@ export default function AddTask() {
   return (
     <div>
       {/* Notepad Modal */}
-      <Modal open={notepadOpen} onClose={() => setNotepadOpen(false)} title="📝 Notepad — Quick Task Entry" subtitle="Separate multiple tasks with a blank line" width={540}>
+      <Modal open={notepadOpen} onClose={() => setNotepadOpen(false)} title="Notepad — Quick Task Entry" subtitle="Separate multiple tasks with a blank line" width={540}>
         <div style={{ background: T.cream, borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: T.slateLight, lineHeight: 1.7 }}>
           <strong style={{ color: T.navy }}>Format:</strong> name, YYYY-MM-DD, HH:MM-HH:MM, priority (urgent/high/normal/low), assigned to<br />
           <span style={{ fontFamily: 'monospace', color: T.navy, fontSize: 11 }}>Fix login bug, 2025-06-14, 10:00-12:00, high, Rahul</span>
@@ -74,7 +75,7 @@ export default function AddTask() {
           const p = notepadText.trim() ? parseNotepadMulti(notepadText) : [];
           return p.length > 0 ? (
             <div style={{ marginTop: 10, padding: '8px 12px', background: T.successBg, borderRadius: 7, border: `1px solid #B7DFD0`, fontSize: 12, color: T.success }}>
-              ✅ {p.length} task{p.length > 1 ? 's' : ''} detected: {p.map(x => x.name).join(' · ')}
+              <Icon name="check" size={14} /> {p.length} task{p.length > 1 ? 's' : ''} detected: {p.map(x => x.name).join(' · ')}
             </div>
           ) : null;
         })()}
@@ -89,7 +90,7 @@ export default function AddTask() {
         <Btn variant="outline" onClick={() => navigate('/tasks')} style={{ padding: '6px 12px', fontSize: 12 }}>← Back to Tasks</Btn>
         <h1 style={{ fontSize: 20, fontWeight: 800, color: T.navy }}>Add Tasks</h1>
         <div style={{ display: 'flex', gap: 8, marginLeft: 6 }}>
-          {sel.type && <Badge label={sel.type === 'job' ? '🏢 Job' : sel.type === 'freelancing' ? '💻 Freelance' : '✏️ Manual'} color="navy" />}
+          {sel.type && <Badge label={sel.type === 'job' ? 'Job' : sel.type === 'freelancing' ? 'Freelance' : 'Manual'} color="navy" />}
           {srcName !== '—' && <Badge label={srcName} color="gold" />}
           {prjName !== '—' && <Badge label={prjName} color="info" />}
         </div>
@@ -104,7 +105,7 @@ export default function AddTask() {
             <h2 style={{ fontSize: 15, fontWeight: 700, color: T.navy, marginBottom: 4 }}>What type of task?</h2>
             <p style={{ fontSize: 12, color: T.slateLight, marginBottom: 20 }}>Click a card — it will auto-advance to the next step</p>
             <div style={{ display: 'flex', gap: 14 }}>
-              {[['🏢','Job','From your employment','job'],['💻','Freelancing','For a client/source','freelancing'],['✏️','Manual','Free-form, no source','manual']].map(([ic,lb,sub,v]) => (
+              {[['building','Job','From your employment','job'],['briefcase','Freelancing','For a client/source','freelancing'],['edit','Manual','Free-form, no source','manual']].map(([ic,lb,sub,v]) => (
                 <SelectCard key={v} icon={ic} label={lb} sub={sub}
                   selected={sel.type === v}
                   onClick={() => { setSel({ type: v, source: null, project: null }); setTimeout(() => goStep(v === 'manual' ? 3 : 1), 160); }}
@@ -146,7 +147,7 @@ export default function AddTask() {
                   onMouseEnter={e => { e.currentTarget.style.borderColor = T.gold; e.currentTarget.style.background = T.goldLight; }}
                   onMouseLeave={e => { if (sel.project !== pr.id) { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.white; } }}
                 >
-                  <span style={{ fontSize: 20 }}>📁</span>
+                  <Icon name="folder" size={20} />
                   <div style={{ fontWeight: 600, color: T.navy, fontSize: 13 }}>{pr.name}</div>
                   <span style={{ fontSize: 11, color: T.gold, marginLeft: 'auto', fontWeight: 600 }}>→</span>
                 </div>
@@ -165,7 +166,7 @@ export default function AddTask() {
                 <p style={{ fontSize: 12, color: T.slateLight }}>{validRows.length} task{validRows.length !== 1 ? 's' : ''} ready · Click any cell to edit inline</p>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <Btn variant="outline" onClick={() => setNotepadOpen(true)} style={{ fontSize: 12 }}>📝 Notepad Import</Btn>
+                <Btn variant="outline" onClick={() => setNotepadOpen(true)} style={{ fontSize: 12 }}><Icon name="note" size={14} /> Notepad Import</Btn>
                 <Btn variant="gold" onClick={addRow} style={{ fontSize: 12 }}>＋ Add Row</Btn>
               </div>
             </div>
@@ -213,7 +214,7 @@ export default function AddTask() {
                           {isActive ? (
                             <select value={row.priority} onChange={e => upd(row.id, 'priority', e.target.value)}
                               style={{ ...cellStyle(true), background: T.white }}>
-                              {[['urgent','🔴 Urgent'],['high','🟠 High'],['normal','🔵 Normal'],['low','⚪ Low']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                              {[['urgent','Urgent'],['high','High'],['normal','Normal'],['low','Low']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                             </select>
                           ) : (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500, color: PRIORITY_COLORS[row.priority] }}>
@@ -241,7 +242,7 @@ export default function AddTask() {
                             style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.slateLight, fontSize: 13, padding: '2px 5px', borderRadius: 4, transition: 'all .1s' }}
                             onMouseEnter={e => { e.currentTarget.style.background = T.errorBg; e.currentTarget.style.color = T.error; }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.slateLight; }}
-                          >✕</button>
+                          ><Icon name="x" size={14} /></button>
                         </td>
                       </tr>
                     );
@@ -256,15 +257,15 @@ export default function AddTask() {
             </div>
 
             <div style={{ display: 'flex', gap: 14, marginBottom: 16, fontSize: 11, color: T.slateLight, flexWrap: 'wrap' }}>
-              <span>💡 Click any row to activate editing</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="info" size={14} /> Click any row to activate editing</span>
               <span>·</span>
-              <span>📝 Notepad Import — paste tasks in plain text with commas or newlines</span>
+              <span><Icon name="note" size={14} /> Notepad Import — paste tasks in plain text with commas or newlines</span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Btn variant="outline" onClick={() => goStep(sel.type === 'manual' ? 0 : 2)} style={{ fontSize: 12 }}>← Back</Btn>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                {validRows.length > 0 && <span style={{ fontSize: 12, color: T.success, fontWeight: 600 }}>✓ {validRows.length} task{validRows.length > 1 ? 's' : ''} ready</span>}
+                {validRows.length > 0 && <span style={{ fontSize: 12, color: T.success, fontWeight: 600 }}><Icon name="check" size={13} /> {validRows.length} task{validRows.length > 1 ? 's' : ''} ready</span>}
                 <Btn variant="gold" onClick={() => validRows.length > 0 && goStep(4)} style={{ fontSize: 12 }}>Review & Save →</Btn>
               </div>
             </div>
@@ -310,14 +311,14 @@ export default function AddTask() {
             </div>
 
             <div style={{ padding: '12px 16px', borderRadius: 10, background: T.successBg, border: `1px solid #B7DFD0`, marginBottom: 20, fontSize: 13, color: T.success }}>
-              ✅ Ready to save {validRows.length} task{validRows.length > 1 ? 's' : ''}
+              <Icon name="check" size={15} /> Ready to save {validRows.length} task{validRows.length > 1 ? 's' : ''}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Btn variant="outline" onClick={() => goStep(3)}>← Edit Tasks</Btn>
               <div style={{ display: 'flex', gap: 10 }}>
                 <Btn variant="outline" onClick={() => navigate('/tasks')}>Cancel</Btn>
-                <Btn variant="gold" onClick={() => navigate('/tasks')}>✓ Save {validRows.length} Task{validRows.length > 1 ? 's' : ''}</Btn>
+                <Btn variant="gold" onClick={() => navigate('/tasks')}><Icon name="check" size={14} /> Save {validRows.length} Task{validRows.length > 1 ? 's' : ''}</Btn>
               </div>
             </div>
           </div>
