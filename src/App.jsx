@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { T } from './theme';
 import { ChatPage, SocialPage, SocialProfilePage } from './pages/social/Social';
+import ExpensePage from './pages/Expenses';
 import { ForgotPasswordPage, LoginPage, RegisterPage, ResetPasswordPage } from './pages/Auth';
 import {
   AddLeavePage,
@@ -32,6 +33,14 @@ import {
   TaskDetailPage,
   TaskListPage,
 } from './pages/IntegratedPages';
+import RentalDashboard from './pages/rental/RentalDashboard';
+import Collection from './pages/rental/Collection';
+import { PropertiesPage, PropertyDetailPage } from './pages/rental/Properties';
+import { TenantsPage, TenantDetailPage } from './pages/rental/Tenants';
+import { AgreementsPage, AgreementFormPage, AgreementDetailPage } from './pages/rental/Agreements';
+import { ElectricityPage, MeterDetailPage, BillDetailPage } from './pages/rental/Electricity';
+import { RentalExpensesPage, RentalReportsPage } from './pages/rental/ExpensesReports';
+import { ChargesPage } from './pages/rental/Charges';
 
 const ProtectedLayout = ({ children }) => (
   <ProtectedRoute>
@@ -86,6 +95,8 @@ function App() {
         <Route path="/notes/:id" element={<ProtectedLayout><NoteDetailPage /></ProtectedLayout>} />
         <Route path="/notes/:id/edit" element={<ProtectedLayout><NoteFormPage /></ProtectedLayout>} />
 
+        <Route path="/expenses" element={<ProtectedLayout><ExpensePage /></ProtectedLayout>} />
+
         <Route path="/documents" element={<ProtectedLayout><DocumentListPage /></ProtectedLayout>} />
         <Route path="/documents/new" element={<ProtectedLayout><DocumentFormPage /></ProtectedLayout>} />
         <Route path="/documents/:id" element={<ProtectedLayout><DocumentDetailPage /></ProtectedLayout>} />
@@ -107,6 +118,22 @@ function App() {
         <Route path="/social/users/:id" element={<ProtectedLayout><SocialProfilePage /></ProtectedLayout>} />
         <Route path="/chat" element={<ProtectedLayout><ChatPage /></ProtectedLayout>} />
         <Route path="/chat/:id" element={<ProtectedLayout><ChatPage /></ProtectedLayout>} />
+
+        <Route path="/rental" element={<ProtectedLayout><RentalDashboard /></ProtectedLayout>} />
+        <Route path="/rental/collection" element={<ProtectedLayout><Collection /></ProtectedLayout>} />
+        <Route path="/rental/properties" element={<ProtectedLayout><PropertiesPage /></ProtectedLayout>} />
+        <Route path="/rental/properties/:id" element={<ProtectedLayout><PropertyDetailPage /></ProtectedLayout>} />
+        <Route path="/rental/tenants" element={<ProtectedLayout><TenantsPage /></ProtectedLayout>} />
+        <Route path="/rental/tenants/:id" element={<ProtectedLayout><TenantDetailPage /></ProtectedLayout>} />
+        <Route path="/rental/agreements" element={<ProtectedLayout><AgreementsPage /></ProtectedLayout>} />
+        <Route path="/rental/agreements/new" element={<ProtectedLayout><AgreementFormPage /></ProtectedLayout>} />
+        <Route path="/rental/agreements/:id" element={<ProtectedLayout><AgreementDetailPage /></ProtectedLayout>} />
+        <Route path="/rental/electricity" element={<ProtectedLayout><ElectricityPage /></ProtectedLayout>} />
+        <Route path="/rental/electricity/meters/:id" element={<ProtectedLayout><MeterDetailPage /></ProtectedLayout>} />
+        <Route path="/rental/electricity/bills/:id" element={<ProtectedLayout><BillDetailPage /></ProtectedLayout>} />
+        <Route path="/rental/expenses" element={<ProtectedLayout><RentalExpensesPage /></ProtectedLayout>} />
+        <Route path="/rental/charges" element={<ProtectedLayout><ChargesPage /></ProtectedLayout>} />
+        <Route path="/rental/reports" element={<ProtectedLayout><RentalReportsPage /></ProtectedLayout>} />
 
         <Route path="/reports" element={<ProtectedLayout><ReportsPage /></ProtectedLayout>} />
         <Route path="/reports/:category" element={<ProtectedLayout><ReportsPage /></ProtectedLayout>} />

@@ -1,5 +1,5 @@
-const API_BASE_URL = "https://vasihsayed.pythonanywhere.com/api";
-// const API_BASE_URL = "http://127.0.0.1:8000/api";
+import { API_BASE_URL, requireApiBaseUrl } from "../config";
+
 export const API_ROOT_URL = API_BASE_URL.replace(/\/api\/?$/, "");
 
 export function resolveAssetUrl(url) {
@@ -59,7 +59,7 @@ export function buildQuery(params = {}) {
 
 function makeUrl(path, params) {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  return `${API_BASE_URL}${cleanPath}${buildQuery(params)}`;
+  return `${requireApiBaseUrl()}${cleanPath}${buildQuery(params)}`;
 }
 
 async function parseResponse(res) {
@@ -172,6 +172,9 @@ export const endpoints = {
   noteShareableUsers: "/notes/shareable-users/",
   documents: "/documents/",
   documentCategories: "/document-categories/",
+  expenses: "/expenses/",
+  expenseCategories: "/expense-categories/",
+  expenseUsers: "/users/",
   attachments: "/management/attachments/",
   socialUsers: "/social/users/",
   socialUserSearch: "/social/users/search/",

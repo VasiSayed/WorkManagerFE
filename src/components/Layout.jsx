@@ -20,13 +20,26 @@ const NAV = [
   { path: "/tasks", icon: "tasks", label: "Tasks" },
   { path: "/meetings", icon: "calendar", label: "Meetings / MOM" },
   { path: "/notes", icon: "note", label: "Notes" },
-  { path: "/documents", icon: "files", label: "Documents" },
+  { path: "/expenses", icon: "wallet", label: "Expenses" },
+  { path: "/documents", icon: "files", label: "DMS / Documents" },
   { path: "/leave", icon: "leave", label: "Leave / Holiday" },
   { path: "/salary", icon: "wallet", label: "Salary / Payments" },
   { path: "/emails", icon: "mail", label: "Emails" },
   { path: "/social", icon: "users", label: "People / Invites" },
   { path: "/chat", icon: "message", label: "Chat" },
   { path: "/reports", icon: "chart", label: "Reports" },
+];
+
+const RENTAL = [
+  { path: "/rental", icon: "home", label: "Rental Overview", end: true },
+  { path: "/rental/collection", icon: "wallet", label: "Collect Rent" },
+  { path: "/rental/properties", icon: "building", label: "Properties & Units" },
+  { path: "/rental/tenants", icon: "users", label: "Tenants" },
+  { path: "/rental/agreements", icon: "clipboard", label: "Agreements" },
+  { path: "/rental/electricity", icon: "bolt", label: "Electricity" },
+  { path: "/rental/expenses", icon: "archive", label: "Property Expenses" },
+  { path: "/rental/charges", icon: "settings", label: "Fixed Charges" },
+  { path: "/rental/reports", icon: "chart", label: "Rental Reports" },
 ];
 
 const MGMT = [
@@ -43,9 +56,10 @@ const MGMT = [
   { path: "/management/settings", icon: "settings", label: "Settings" },
 ];
 
-const NavItem = ({ path, icon, label, small }) => (
+const NavItem = ({ path, icon, label, small, end }) => (
   <NavLink
     to={path}
+    end={end}
     style={({ isActive }) => ({
       display: "flex",
       alignItems: "center",
@@ -84,6 +98,10 @@ export const Sidebar = () => {
       </div>
       <div style={{ padding: "6px 10px", flex: 1 }}>
         {NAV.map((n) => <NavItem key={n.path} {...n} />)}
+        <div style={{ margin: "16px 0 8px", padding: "0 12px" }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,.3)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Rental Management</span>
+        </div>
+        {RENTAL.map((n) => <NavItem key={n.path} {...n} small />)}
         <div style={{ margin: "16px 0 8px", padding: "0 12px" }}>
           <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,.3)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Management</span>
         </div>
@@ -189,12 +207,15 @@ export const AppHeader = () => {
   const mobile = useIsMobile();
   const location = useLocation();
   const labels = {
-    "/dashboard": "Dashboard", "/tasks": "Tasks", "/meetings": "Meetings / MOM", "/notes": "Notes", "/documents": "Documents",
+    "/dashboard": "Dashboard", "/tasks": "Tasks", "/meetings": "Meetings / MOM", "/notes": "Notes", "/expenses": "Expenses", "/documents": "DMS / Documents",
     "/leave": "Leave & Holidays", "/salary": "Salary & Payments", "/emails": "Emails", "/social": "People & Invitations", "/chat": "Chat", "/reports": "Reports",
     "/management/jobs": "Management › Jobs", "/management/sources": "Management › Freelancing Sources", "/management/projects": "Management › Projects",
     "/management/employees": "Management › Employees", "/management/email-types": "Management › Email Types", "/management/email-templates": "Management › Email Templates",
     "/management/email-variables": "Management › Email Variables", "/management/designations": "Management › Designations",
-    "/management/salary-changes": "Management › Salary Changes", "/management/document-categories": "Management › Document Categories", "/management/settings": "Management › Settings",
+    "/management/salary-changes": "Management › Salary Changes",
+    "/rental": "Rental › Overview", "/rental/collection": "Rental › Collect Rent", "/rental/properties": "Rental › Properties & Units", "/rental/tenants": "Rental › Tenants",
+    "/rental/agreements": "Rental › Agreements", "/rental/electricity": "Rental › Electricity", "/rental/expenses": "Rental › Property Expenses",
+    "/rental/charges": "Rental › Fixed Charges", "/rental/reports": "Rental › Reports", "/management/document-categories": "Management › Document Categories", "/management/settings": "Management › Settings",
   };
   const path = "/" + location.pathname.split("/").slice(1, 3).join("/");
   const label = labels[path] || labels[location.pathname] || "WorkManager";
@@ -216,7 +237,7 @@ export const AppHeader = () => {
 
 const BottomNav = () => (
   <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, minHeight: 64, paddingBottom: "env(safe-area-inset-bottom)", background: T.white, borderTop: `1px solid ${T.border}`, zIndex: 120, display: "grid", gridTemplateColumns: "repeat(5,1fr)", boxShadow: "0 -8px 24px rgba(15,23,42,.08)" }}>
-    {NAV.slice(0, 5).map((n) => (
+    {[...NAV.slice(0, 4), { path: "/rental", icon: "building", label: "Rental" }].map((n) => (
       <NavLink key={n.path} to={n.path} style={({ isActive }) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, minHeight: 62, textDecoration: "none", fontSize: 10, color: isActive ? T.goldDark : T.slateLight, fontWeight: isActive ? 700 : 500 })}>
         <Icon name={n.icon} size={19} />
         <span>{n.label.split(" ")[0]}</span>

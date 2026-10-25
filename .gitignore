@@ -2,3 +2,7 @@ node_modules/
 dist/
 build/
 
+
+# Local env files (production values live in .env.production)
+.env
+.env.local
