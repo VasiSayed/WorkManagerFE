@@ -29,6 +29,7 @@ const ledger = {
   saveContact: (body, id) => apiRequest(id ? `${endpoints.expenseContacts}${id}/` : endpoints.expenseContacts, { method: id ? 'PATCH' : 'POST', body }),
   removeContact: (id) => api.remove(`${endpoints.expenseContacts}${id}/`),
   tags: () => apiRequest(endpoints.expenseTags).then(normalizeList),
+  saveTag: (body) => apiRequest(endpoints.expenseTags, { method: 'POST', body }),
   removeTag: (id) => api.remove(`${endpoints.expenseTags}${id}/`),
 };
 
@@ -209,81 +210,194 @@ function EntryModal({ open, entry, initialType, lists, onClose, onSaved, onLists
   );
 }
 
-/* ── Manage categories / contacts / tags ── */
+/* ── Categories / Contacts / Tags pages (Expense sub-bar) ── */
 
-function ManageModal({ open, lists, onClose, onChanged }) {
-  const [tab, setTab] = useState('categories');
+function useLedgerList(fetcher) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const run = async (fn) => { setError(''); try { await fn(); await onChanged(); } catch (err) { setError(getErrorMessage(err)); } };
-  const rename = (kind, item) => {
-    const name = window.prompt('New name', item.name);
-    if (!name || name.trim() === item.name) return;
-    run(() => (kind === 'contact' ? ledger.saveContact({ name: name.trim() }, item.id) : ledger.saveCategory({ name: name.trim() }, item.id)));
+  const reload = async () => {
+    setError('');
+    try { setItems(await fetcher()); }
+    catch (err) { setError(getErrorMessage(err)); }
+    finally { setLoading(false); }
   };
-  const remove = (label, fn) => { if (window.confirm(`Delete ${label}? Entries keep their amounts but lose this link.`)) run(fn); };
-  const mains = lists.categories.filter((c) => !c.parent);
-  const row = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: `1px dashed ${T.border}`, fontSize: 13 };
+  useEffect(() => { void reload(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return { items, loading, error, setError, reload };
+}
+
+function AddBar({ placeholder, extraPlaceholder, onAdd, buttonLabel = 'Add' }) {
+  const [name, setName] = useState('');
+  const [extra, setExtra] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setBusy(true); setError('');
+    try { await onAdd(name.trim(), extra.trim()); setName(''); setExtra(''); }
+    catch (err) { setError(getErrorMessage(err)); }
+    finally { setBusy(false); }
+  };
+  return (
+    <form onSubmit={submit} style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={placeholder} style={{ ...inputStyle, flex: '2 1 200px', width: 'auto' }} />
+        {extraPlaceholder && <input value={extra} onChange={(e) => setExtra(e.target.value)} placeholder={extraPlaceholder} style={{ ...inputStyle, flex: '1 1 150px', width: 'auto' }} />}
+        <Btn type="submit" variant="gold" disabled={busy || !name.trim()}><Icon name="plus" size={14} /> {buttonLabel}</Btn>
+      </div>
+      {error && <div style={{ fontSize: 12, color: T.error, marginTop: 6 }}>{error}</div>}
+    </form>
+  );
+}
+
+const confirmDelete = (label) => window.confirm(`Delete ${label}? Entries keep their amounts but lose this link.`);
+
+function SubCategoryAdd({ parent, onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  if (!open) return <LinkBtn onClick={() => setOpen(true)}>+ Sub-category</LinkBtn>;
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    try { await onAdd(name.trim()); setName(''); setOpen(false); }
+    catch (err) { setError(getErrorMessage(err)); }
+  };
+  return (
+    <form onSubmit={submit} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+      <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={`Sub-category of ${parent.name}`} style={{ ...inputStyle, width: 200, padding: '6px 9px' }} />
+      <Btn type="submit" variant="gold" style={{ padding: '6px 10px' }} disabled={!name.trim()}>Add</Btn>
+      <Btn variant="outline" style={{ padding: '6px 9px' }} onClick={() => { setOpen(false); setError(''); }}>×</Btn>
+      {error && <span style={{ fontSize: 11, color: T.error }}>{error}</span>}
+    </form>
+  );
+}
+
+export function ExpenseCategoriesPage() {
+  const list = useLedgerList(ledger.categories);
+  const run = async (fn) => { list.setError(''); try { await fn(); await list.reload(); } catch (err) { list.setError(getErrorMessage(err)); } };
+  const rename = (item) => {
+    const name = window.prompt('New name', item.name);
+    if (name && name.trim() !== item.name) run(() => ledger.saveCategory({ name: name.trim() }, item.id));
+  };
+  const mains = list.items.filter((c) => !c.parent);
 
   return (
-    <FormModal open={open} onClose={onClose} title="Categories, contacts & tags" onSubmit={onClose} submitLabel="Done" width={620}>
-      <ErrorBox message={error} />
-      <Segmented value={tab} onChange={setTab} options={[['categories', 'Categories'], ['contacts', 'Contacts'], ['tags', 'Tags']]} />
-      {tab === 'categories' && (
-        <div>
-          <Btn variant="outline" onClick={() => { const name = window.prompt('Category name'); if (name?.trim()) run(() => ledger.saveCategory({ name: name.trim() })); }}><Icon name="plus" size={14} /> Category</Btn>
-          {mains.length === 0 && <Muted style={{ marginTop: 10 }}>No categories yet.</Muted>}
-          {mains.map((c) => (
-            <div key={c.id} style={{ marginTop: 10, border: `1px solid ${T.border}`, borderRadius: 10, padding: '4px 12px' }}>
-              <div style={row}>
-                <strong style={{ color: T.navy }}>{c.name}</strong>
-                <span style={{ display: 'flex', gap: 10 }}>
-                  <LinkBtn onClick={() => { const name = window.prompt(`Sub-category of ${c.name}`); if (name?.trim()) run(() => ledger.saveCategory({ name: name.trim(), parent: c.id })); }}>+ Sub</LinkBtn>
-                  <LinkBtn onClick={() => rename('category', c)}>Rename</LinkBtn>
-                  <LinkBtn danger onClick={() => remove(`${c.name} and its sub-categories`, () => ledger.removeCategory(c.id))}>Delete</LinkBtn>
-                </span>
-              </div>
-              {lists.categories.filter((s) => s.parent === c.id).map((s) => (
-                <div key={s.id} style={{ ...row, paddingLeft: 16 }}>
-                  <span>↳ {s.name}</span>
-                  <span style={{ display: 'flex', gap: 10 }}>
-                    <LinkBtn onClick={() => rename('category', s)}>Rename</LinkBtn>
-                    <LinkBtn danger onClick={() => remove(s.name, () => ledger.removeCategory(s.id))}>Delete</LinkBtn>
-                  </span>
+    <div>
+      <PageHeader title="Categories" sub="Group your entries. Each category can have sub-categories, e.g. Home → Groceries, Electricity." />
+      <ErrorBox message={list.error} />
+      <Card>
+        <AddBar placeholder="New category name, e.g. Home, Car, Office" buttonLabel="Add category" onAdd={async (name) => { await ledger.saveCategory({ name }); await list.reload(); }} />
+        {list.loading ? <Loading /> : mains.length === 0 ? <Muted>No categories yet.</Muted> : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 12 }}>
+            {mains.map((c) => {
+              const subs = list.items.filter((s) => s.parent === c.id);
+              return (
+                <div key={c.id} style={{ border: `1px solid ${T.border}`, borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <strong style={{ color: T.navy, fontSize: 15 }}>{c.name}</strong>
+                    <span style={{ display: 'flex', gap: 10 }}>
+                      <LinkBtn onClick={() => rename(c)}>Rename</LinkBtn>
+                      <LinkBtn danger onClick={() => confirmDelete(`${c.name} and its ${subs.length} sub-categories`) && run(() => ledger.removeCategory(c.id))}>Delete</LinkBtn>
+                    </span>
+                  </div>
+                  {subs.length === 0 ? <Muted>No sub-categories.</Muted> : subs.map((s) => (
+                    <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, padding: '4px 0 4px 10px', borderLeft: `2px solid ${T.goldLight}` }}>
+                      <span>{s.name}</span>
+                      <span style={{ display: 'flex', gap: 10 }}>
+                        <LinkBtn onClick={() => rename(s)}>Rename</LinkBtn>
+                        <LinkBtn danger onClick={() => confirmDelete(s.name) && run(() => ledger.removeCategory(s.id))}>Delete</LinkBtn>
+                      </span>
+                    </div>
+                  ))}
+                  <SubCategoryAdd parent={c} onAdd={async (name) => { await ledger.saveCategory({ name, parent: c.id }); await list.reload(); }} />
                 </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-      {tab === 'contacts' && (
-        <div>
-          <Btn variant="outline" onClick={() => { const name = window.prompt('Contact name'); if (!name?.trim()) return; const phone = window.prompt('Phone (optional)') || ''; run(() => ledger.saveContact({ name: name.trim(), phone: phone.trim() })); }}><Icon name="plus" size={14} /> Contact</Btn>
-          {lists.contacts.length === 0 && <Muted style={{ marginTop: 10 }}>No contacts yet. They are only visible to you.</Muted>}
-          {lists.contacts.map((c) => (
-            <div key={c.id} style={row}>
-              <span><strong style={{ color: T.navy }}>{c.name}</strong>{c.phone && <Muted>{c.phone}</Muted>}</span>
-              <span style={{ display: 'flex', gap: 10 }}>
-                <LinkBtn onClick={() => { const phone = window.prompt(`Phone for ${c.name}`, c.phone || ''); if (phone !== null) run(() => ledger.saveContact({ phone: phone.trim() }, c.id)); }}>Phone</LinkBtn>
-                <LinkBtn onClick={() => rename('contact', c)}>Rename</LinkBtn>
-                <LinkBtn danger onClick={() => remove(c.name, () => ledger.removeContact(c.id))}>Delete</LinkBtn>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+export function ExpenseContactsPage() {
+  const list = useLedgerList(ledger.contacts);
+  const [search, setSearch] = useState('');
+  const run = async (fn) => { list.setError(''); try { await fn(); await list.reload(); } catch (err) { list.setError(getErrorMessage(err)); } };
+  const edit = (c) => {
+    const name = window.prompt('Name', c.name);
+    if (name === null) return;
+    const phone = window.prompt('Phone (optional)', c.phone || '');
+    if (phone === null) return;
+    run(() => ledger.saveContact({ name: name.trim() || c.name, phone: phone.trim() }, c.id));
+  };
+  const rows = list.items.filter((c) => !search || `${c.name} ${c.phone}`.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div>
+      <PageHeader title="Contacts" sub="People you give money to or get money from. Only you can see them." />
+      <ErrorBox message={list.error} />
+      <Card>
+        <AddBar placeholder="Name" extraPlaceholder="Phone (optional)" buttonLabel="Add contact"
+          onAdd={async (name, phone) => { await ledger.saveContact({ name, phone }); await list.reload(); }} />
+        {list.items.length > 5 && <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search contacts…" style={{ ...inputStyle, marginBottom: 12, maxWidth: 320 }} />}
+        {list.loading ? <Loading /> : rows.length === 0 ? <Muted>{list.items.length ? 'No contact matches.' : 'No contacts yet.'}</Muted> : (
+          <TableWrapper>
+            <thead><tr><Th>Name</Th><Th>Phone</Th><Th>Entries</Th><Th>You gave</Th><Th>You got</Th><Th>Net</Th><Th /></tr></thead>
+            <tbody>
+              {rows.map((c, i) => {
+                const n = Number(c.received) - Number(c.given);
+                return (
+                  <tr key={c.id}>
+                    <Td alt={i % 2}><strong style={{ color: T.navy }}>{c.name}</strong></Td>
+                    <Td alt={i % 2}>{c.phone ? <a href={`tel:${c.phone}`} style={{ color: T.slate }}>{c.phone}</a> : '—'}</Td>
+                    <Td alt={i % 2}>{c.entries}</Td>
+                    <Td alt={i % 2}><span style={{ color: T.error }}>{rupees(c.given)}</span></Td>
+                    <Td alt={i % 2}><span style={{ color: T.success }}>{rupees(c.received)}</span></Td>
+                    <Td alt={i % 2}><strong style={{ color: n < 0 ? T.error : n > 0 ? T.success : T.slate }}>{n < 0 ? '−' : ''}{rupees(Math.abs(n))}</strong></Td>
+                    <Td alt={i % 2}>
+                      <span style={{ display: 'flex', gap: 10 }}>
+                        <LinkBtn onClick={() => edit(c)}>Edit</LinkBtn>
+                        <LinkBtn danger onClick={() => confirmDelete(c.name) && run(() => ledger.removeContact(c.id))}>Delete</LinkBtn>
+                      </span>
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </TableWrapper>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+export function ExpenseTagsPage() {
+  const list = useLedgerList(ledger.tags);
+  const run = async (fn) => { list.setError(''); try { await fn(); await list.reload(); } catch (err) { list.setError(getErrorMessage(err)); } };
+
+  return (
+    <div>
+      <PageHeader title="Tags" sub="Free labels like #trip or #office. Type them on any entry; they are only yours." />
+      <ErrorBox message={list.error} />
+      <Card>
+        <AddBar placeholder="New tag, e.g. trip" buttonLabel="Add tag" onAdd={async (name) => { await ledger.saveTag({ name }); await list.reload(); }} />
+        {list.loading ? <Loading /> : list.items.length === 0 ? <Muted>No tags yet.</Muted> : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {list.items.map((t) => (
+              <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 999, background: T.navyTint, color: T.navy, fontSize: 13, fontWeight: 700 }}>
+                #{t.name}
+                <span style={{ fontSize: 11, fontWeight: 500, color: T.slateLight }}>{t.entries} entr{t.entries === 1 ? 'y' : 'ies'}</span>
+                <button type="button" aria-label={`Delete tag ${t.name}`} onClick={() => confirmDelete(`#${t.name}`) && run(() => ledger.removeTag(t.id))}
+                  style={{ border: 0, background: 'none', color: T.error, cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>×</button>
               </span>
-            </div>
-          ))}
-        </div>
-      )}
-      {tab === 'tags' && (
-        <div>
-          <Muted>Tags are created when you type them on an entry.</Muted>
-          {lists.tags.length === 0 && <Muted style={{ marginTop: 10 }}>No tags yet.</Muted>}
-          {lists.tags.map((t) => (
-            <div key={t.id} style={row}>
-              <span>#{t.name} <Muted style={{ display: 'inline' }}>· {t.entries} entr{t.entries === 1 ? 'y' : 'ies'}</Muted></span>
-              <LinkBtn danger onClick={() => remove(`#${t.name}`, () => ledger.removeTag(t.id))}>Delete</LinkBtn>
-            </div>
-          ))}
-        </div>
-      )}
-    </FormModal>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }
 
@@ -313,7 +427,6 @@ export function ExpensePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modal, setModal] = useState(null); // { type } | { entry }
-  const [manage, setManage] = useState(false);
   const [toast, setToast] = useState('');
   const setFilter = (k) => (v) => setFilters((x) => ({ ...x, [k]: v }));
 
@@ -370,7 +483,6 @@ export function ExpensePage() {
         title="Expense Ledger"
         sub="Every rupee given and received, with categories, people and tags."
         action={<>
-          <Btn variant="outline" onClick={() => setManage(true)}><Icon name="settings" size={14} /> Categories & contacts</Btn>
           <Btn variant="danger" onClick={() => setModal({ type: 'given' })}><Icon name="arrowRight" size={14} /> Given</Btn>
           <Btn variant="primary" onClick={() => setModal({ type: 'received' })} style={{ background: T.success, borderColor: T.success }}><Icon name="arrowLeft" size={14} /> Received</Btn>
         </>}
@@ -488,7 +600,6 @@ export function ExpensePage() {
 
       <EntryModal open={!!modal} entry={modal?.entry} initialType={modal?.type || 'given'} lists={lists} onClose={() => setModal(null)} onListsChanged={loadLists}
         onSaved={(e) => { setModal(null); setToast(`Saved ${rupees(e.amount)} ${e.transaction_type}`); load(); loadLists(); }} />
-      <ManageModal open={manage} lists={lists} onClose={() => setManage(false)} onChanged={async () => { await loadLists(); await load(); }} />
       {toast && <Toast message={toast} onClose={() => setToast('')} />}
     </div>
   );

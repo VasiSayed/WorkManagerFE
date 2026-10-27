@@ -2,7 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { T } from './theme';
 import { ChatPage, SocialPage, SocialProfilePage } from './pages/social/Social';
-import ExpensePage from './pages/Expenses';
+import ExpensePage, { ExpenseCategoriesPage, ExpenseContactsPage, ExpenseTagsPage } from './pages/Expenses';
 import { ForgotPasswordPage, LoginPage, RegisterPage, ResetPasswordPage } from './pages/Auth';
 import {
   AddLeavePage,
@@ -98,6 +98,9 @@ function App() {
         <Route path="/notes/:id/edit" element={<ProtectedLayout><NoteFormPage /></ProtectedLayout>} />
 
         <Route path="/expenses" element={<ProtectedLayout><ExpensePage /></ProtectedLayout>} />
+        <Route path="/expenses/categories" element={<ProtectedLayout><ExpenseCategoriesPage /></ProtectedLayout>} />
+        <Route path="/expenses/contacts" element={<ProtectedLayout><ExpenseContactsPage /></ProtectedLayout>} />
+        <Route path="/expenses/tags" element={<ProtectedLayout><ExpenseTagsPage /></ProtectedLayout>} />
 
         <Route path="/documents" element={<ProtectedLayout><DocumentListPage /></ProtectedLayout>} />
         <Route path="/documents/new" element={<ProtectedLayout><DocumentFormPage /></ProtectedLayout>} />

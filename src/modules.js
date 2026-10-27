@@ -39,7 +39,12 @@ export const MODULES = [
     icon: "wallet",
     color: "#2D7D5A",
     description: "Money given and received, with categories and receipts.",
-    items: [{ path: "/expenses", icon: "wallet", label: "Expenses" }],
+    items: [
+      { path: "/expenses", icon: "wallet", label: "Ledger", end: true },
+      { path: "/expenses/categories", icon: "folder", label: "Categories" },
+      { path: "/expenses/contacts", icon: "users", label: "Contacts" },
+      { path: "/expenses/tags", icon: "tag", label: "Tags" },
+    ],
   },
   {
     key: "rental",
