@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { T } from "../theme";
 import { api, endpoints, getStoredUser, normalizeList, resolveAssetUrl } from "../api/client";
 import { Icon } from "./Icons";
+import { locate, MODULES, rememberModule } from "../modules";
 
 const useIsMobile = () => {
   const get = () => (typeof window !== "undefined" ? window.innerWidth <= 768 : false);
@@ -15,111 +16,64 @@ const useIsMobile = () => {
   return mobile;
 };
 
-const NAV = [
-  { path: "/dashboard", icon: "home", label: "Dashboard" },
-  { path: "/tasks", icon: "tasks", label: "Tasks" },
-  { path: "/meetings", icon: "calendar", label: "Meetings / MOM" },
-  { path: "/notes", icon: "note", label: "Notes" },
-  { path: "/expenses", icon: "wallet", label: "Expenses" },
-  { path: "/documents", icon: "files", label: "DMS / Documents" },
-  { path: "/leave", icon: "leave", label: "Leave / Holiday" },
-  { path: "/salary", icon: "wallet", label: "Salary / Payments" },
-  { path: "/emails", icon: "mail", label: "Emails" },
-  { path: "/social", icon: "users", label: "People / Invites" },
-  { path: "/chat", icon: "message", label: "Chat" },
-  { path: "/reports", icon: "chart", label: "Reports" },
-];
+/* ── Main bar (modules) + sub bar (pages of the selected module) ── */
 
-const RENTAL = [
-  { path: "/rental", icon: "home", label: "Rental Overview", end: true },
-  { path: "/rental/collection", icon: "wallet", label: "Collect Rent" },
-  { path: "/rental/properties", icon: "building", label: "Properties & Units" },
-  { path: "/rental/tenants", icon: "users", label: "Tenants" },
-  { path: "/rental/agreements", icon: "clipboard", label: "Agreements" },
-  { path: "/rental/electricity", icon: "bolt", label: "Electricity" },
-  { path: "/rental/expenses", icon: "archive", label: "Property Expenses" },
-  { path: "/rental/charges", icon: "settings", label: "Fixed Charges" },
-  { path: "/rental/reports", icon: "chart", label: "Rental Reports" },
-];
+function RailButton({ module, active, onClick }) {
+  return (
+    <button type="button" onClick={onClick} title={module.description} aria-current={active ? "page" : undefined}
+      style={{ width: 60, padding: "9px 0 7px", border: 0, borderRadius: 12, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+        background: active ? "rgba(201,168,76,.18)" : "transparent", color: active ? T.gold : "rgba(255,255,255,.66)" }}>
+      <Icon name={module.icon} size={20} />
+      <span style={{ fontSize: 10, fontWeight: active ? 800 : 600, letterSpacing: ".02em" }}>{module.label}</span>
+    </button>
+  );
+}
 
-const MGMT = [
-  { path: "/management/jobs", icon: "building", label: "Jobs" },
-  { path: "/management/sources", icon: "briefcase", label: "Freelancing Sources" },
-  { path: "/management/projects", icon: "folder", label: "Projects" },
-  { path: "/management/employees", icon: "users", label: "Employees / Members" },
-  { path: "/management/email-types", icon: "tag", label: "Email Types" },
-  { path: "/management/email-templates", icon: "mail", label: "Email Templates" },
-  { path: "/management/email-variables", icon: "variables", label: "Email Variables" },
-  { path: "/management/designations", icon: "idCard", label: "Designations" },
-  { path: "/management/salary-changes", icon: "trend", label: "Salary Changes" },
-  { path: "/management/document-categories", icon: "archive", label: "Document Categories" },
-  { path: "/management/settings", icon: "settings", label: "Settings" },
-];
-
-const NavItem = ({ path, icon, label, small, end }) => (
-  <NavLink
-    to={path}
-    end={end}
-    style={({ isActive }) => ({
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      padding: small ? "7px 11px" : "9px 12px",
-      borderRadius: 8,
-      marginBottom: 2,
-      textDecoration: "none",
-      background: isActive ? "rgba(201,168,76,.15)" : "transparent",
-      borderLeft: isActive ? `3px solid ${T.gold}` : "3px solid transparent",
-      transition: "all .15s",
-    })}
-  >
-    {({ isActive }) => (
-      <>
-        <Icon name={icon} size={small ? 15 : 17} style={{ color: isActive ? T.gold : "rgba(255,255,255,.72)" }} />
-        <span style={{ fontSize: small ? 12 : 13, fontWeight: isActive ? 600 : 400, color: isActive ? T.gold : "rgba(255,255,255,.75)" }}>
-          {label}
-        </span>
-      </>
-    )}
-  </NavLink>
-);
-
-export const Sidebar = () => {
+function Rail({ current }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = getStoredUser() || {};
   const initials = (user.full_name || user.email || "U").split(/[ @]/).filter(Boolean).slice(0, 2).map((x) => x[0]?.toUpperCase()).join("") || "U";
   const logout = () => { api.auth.logout(); navigate("/login", { replace: true }); };
+  const open = (m) => { rememberModule(m.key); navigate(m.items[0].path); };
 
   return (
-    <aside style={{ width: 232, minHeight: "100vh", background: T.navy, display: "flex", flexDirection: "column", padding: "0 0 16px", flexShrink: 0, position: "sticky", top: 0, height: "100vh", overflowY: "auto" }}>
-      <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid rgba(255,255,255,.1)", marginBottom: 8 }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: T.white, letterSpacing: "-0.02em" }}>WorkManager</div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)", marginTop: 2 }}>Personal Work Suite</div>
-      </div>
-      <div style={{ padding: "6px 10px", flex: 1 }}>
-        {NAV.map((n) => <NavItem key={n.path} {...n} />)}
-        <div style={{ margin: "16px 0 8px", padding: "0 12px" }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,.3)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Rental Management</span>
+    <nav aria-label="Modules" style={{ width: 76, flexShrink: 0, background: T.navy, display: "flex", flexDirection: "column", alignItems: "center", padding: "14px 0", gap: 6, position: "sticky", top: 0, height: "100vh", overflowY: "auto" }}>
+      <button type="button" onClick={() => navigate("/home")} title="All modules" aria-current={location.pathname === "/home" ? "page" : undefined}
+        style={{ width: 44, height: 44, borderRadius: 12, border: 0, background: location.pathname === "/home" ? T.gold : "rgba(255,255,255,.1)", color: T.white, fontWeight: 900, fontSize: 15, cursor: "pointer", marginBottom: 10 }}>
+        WM
+      </button>
+      {MODULES.map((m) => <RailButton key={m.key} module={m} active={current?.key === m.key} onClick={() => open(m)} />)}
+      <div style={{ flex: 1 }} />
+      <div title={user.email || ""} style={{ width: 34, height: 34, borderRadius: "50%", background: T.gold, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: T.white }}>{initials}</div>
+      <button type="button" onClick={logout} title="Logout" aria-label="Logout" style={{ width: 36, height: 36, border: 0, background: "transparent", color: "rgba(255,255,255,.55)", cursor: "pointer" }}>
+        <Icon name="logout" size={18} />
+      </button>
+    </nav>
+  );
+}
+
+function SubBar({ module }) {
+  return (
+    <aside aria-label={`${module.label} pages`} style={{ width: 216, flexShrink: 0, background: T.white, borderRight: `1px solid ${T.border}`, position: "sticky", top: 0, height: "100vh", overflowY: "auto", padding: "18px 12px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 6px 14px", borderBottom: `1px solid ${T.border}`, marginBottom: 10 }}>
+        <span style={{ width: 32, height: 32, borderRadius: 9, background: `${module.color}1A`, color: module.color, display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Icon name={module.icon} size={17} /></span>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: T.navy }}>{module.label}</div>
+          <div style={{ fontSize: 10, color: T.slateLight }}>{module.items.length} page{module.items.length === 1 ? "" : "s"}</div>
         </div>
-        {RENTAL.map((n) => <NavItem key={n.path} {...n} small />)}
-        <div style={{ margin: "16px 0 8px", padding: "0 12px" }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,.3)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Management</span>
-        </div>
-        {MGMT.map((n) => <NavItem key={n.path} {...n} small />)}
       </div>
-      <div style={{ margin: "0 10px", padding: 12, borderRadius: 8, background: "rgba(255,255,255,.07)", display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.gold, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: T.white, flexShrink: 0 }}>{initials}</div>
-        <div style={{ overflow: "hidden", flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: T.white, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.full_name || "User"}</div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.email || ""}</div>
-        </div>
-        <button onClick={logout} title="Logout" style={{ width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", color: "rgba(255,255,255,.55)", cursor: "pointer" }}>
-          <Icon name="logout" size={17} />
-        </button>
-      </div>
+      {module.items.map((item) => (
+        <NavLink key={item.path} to={item.path} end={item.end}
+          style={({ isActive }) => ({ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, marginBottom: 2, textDecoration: "none",
+            background: isActive ? T.goldLight : "transparent", color: isActive ? T.goldDark : T.slate, fontWeight: isActive ? 700 : 500, fontSize: 13 })}>
+          <Icon name={item.icon} size={16} />
+          <span>{item.label}</span>
+        </NavLink>
+      ))}
     </aside>
   );
-};
+}
 
 function NotificationMenu() {
   const navigate = useNavigate();
@@ -206,24 +160,22 @@ function NotificationMenu() {
 export const AppHeader = () => {
   const mobile = useIsMobile();
   const location = useLocation();
-  const labels = {
-    "/dashboard": "Dashboard", "/tasks": "Tasks", "/meetings": "Meetings / MOM", "/notes": "Notes", "/expenses": "Expenses", "/documents": "DMS / Documents",
-    "/leave": "Leave & Holidays", "/salary": "Salary & Payments", "/emails": "Emails", "/social": "People & Invitations", "/chat": "Chat", "/reports": "Reports",
-    "/management/jobs": "Management › Jobs", "/management/sources": "Management › Freelancing Sources", "/management/projects": "Management › Projects",
-    "/management/employees": "Management › Employees", "/management/email-types": "Management › Email Types", "/management/email-templates": "Management › Email Templates",
-    "/management/email-variables": "Management › Email Variables", "/management/designations": "Management › Designations",
-    "/management/salary-changes": "Management › Salary Changes",
-    "/rental": "Rental › Overview", "/rental/collection": "Rental › Collect Rent", "/rental/properties": "Rental › Properties & Units", "/rental/tenants": "Rental › Tenants",
-    "/rental/agreements": "Rental › Agreements", "/rental/electricity": "Rental › Electricity", "/rental/expenses": "Rental › Property Expenses",
-    "/rental/charges": "Rental › Fixed Charges", "/rental/reports": "Rental › Reports", "/management/document-categories": "Management › Document Categories", "/management/settings": "Management › Settings",
-  };
-  const path = "/" + location.pathname.split("/").slice(1, 3).join("/");
-  const label = labels[path] || labels[location.pathname] || "WorkManager";
+  const navigate = useNavigate();
+  const found = locate(location.pathname);
   const user = getStoredUser() || {};
 
   return (
-    <header style={{ height: mobile ? 52 : 56, background: T.white, borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: mobile ? "0 12px" : "0 28px", flexShrink: 0, position: "sticky", top: 0, zIndex: 110 }}>
-      <span style={{ fontSize: mobile ? 12 : 13, fontWeight: 600, color: T.navy, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mobile ? "WorkManager" : label}</span>
+    <header style={{ height: mobile ? 52 : 56, background: T.white, borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: mobile ? "0 12px" : "0 28px", flexShrink: 0, position: "sticky", top: 0, zIndex: 110, gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        {mobile && found && (
+          <button type="button" onClick={() => navigate("/home")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 999, border: `1px solid ${T.border}`, background: T.rowAlt, color: T.navy, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+            <Icon name={found.module.icon} size={14} /> {found.module.label} ▾
+          </button>
+        )}
+        <span style={{ fontSize: mobile ? 12 : 13, fontWeight: 600, color: T.navy, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {location.pathname === "/home" ? "All modules" : found ? (mobile ? found.item.label : `${found.module.label} › ${found.item.label}`) : "WorkManager"}
+        </span>
+      </div>
       <div style={{ display: "flex", alignItems: "center", gap: mobile ? 10 : 18 }}>
         {!mobile && <span style={{ fontSize: 12, color: T.slateLight, display: "inline-flex", alignItems: "center", gap: 7 }}><Icon name="clock" size={15} />{new Date().toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}</span>}
         <NotificationMenu />
@@ -235,26 +187,41 @@ export const AppHeader = () => {
   );
 };
 
-const BottomNav = () => (
-  <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, minHeight: 64, paddingBottom: "env(safe-area-inset-bottom)", background: T.white, borderTop: `1px solid ${T.border}`, zIndex: 120, display: "grid", gridTemplateColumns: "repeat(5,1fr)", boxShadow: "0 -8px 24px rgba(15,23,42,.08)" }}>
-    {[...NAV.slice(0, 4), { path: "/rental", icon: "building", label: "Rental" }].map((n) => (
-      <NavLink key={n.path} to={n.path} style={({ isActive }) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, minHeight: 62, textDecoration: "none", fontSize: 10, color: isActive ? T.goldDark : T.slateLight, fontWeight: isActive ? 700 : 500 })}>
-        <Icon name={n.icon} size={19} />
-        <span>{n.label.split(" ")[0]}</span>
+/** Phones: the current module's first pages plus a button back to the module launcher. */
+const BottomNav = ({ module }) => {
+  const items = module ? module.items.slice(0, 4) : [];
+  return (
+    <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, minHeight: 64, paddingBottom: "env(safe-area-inset-bottom)", background: T.white, borderTop: `1px solid ${T.border}`, zIndex: 120, display: "grid", gridTemplateColumns: `repeat(${items.length + 1},1fr)`, boxShadow: "0 -8px 24px rgba(15,23,42,.08)" }}>
+      {items.map((n) => (
+        <NavLink key={n.path} to={n.path} end={n.end} style={({ isActive }) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, minHeight: 62, textDecoration: "none", fontSize: 10, color: isActive ? T.goldDark : T.slateLight, fontWeight: isActive ? 700 : 500, textAlign: "center", padding: "0 2px" })}>
+          <Icon name={n.icon} size={19} />
+          <span>{n.label.split(" ")[0]}</span>
+        </NavLink>
+      ))}
+      <NavLink to="/home" style={({ isActive }) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, minHeight: 62, textDecoration: "none", fontSize: 10, color: isActive ? T.goldDark : T.slateLight, fontWeight: isActive ? 700 : 500 })}>
+        <Icon name="grid" size={19} />
+        <span>Modules</span>
       </NavLink>
-    ))}
-  </nav>
-);
+    </nav>
+  );
+};
 
 export const Layout = ({ children }) => {
   const mobile = useIsMobile();
+  const location = useLocation();
+  const found = locate(location.pathname);
+  const module = found?.module || null;
+
+  useEffect(() => { if (module) rememberModule(module.key); }, [module]);
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter', -apple-system, sans-serif" }}>
-      {!mobile && <Sidebar />}
+      {!mobile && <Rail current={module} />}
+      {!mobile && module && <SubBar module={module} />}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
         <AppHeader />
         <main style={{ flex: 1, padding: mobile ? "14px 10px 84px" : "28px 32px", overflowY: "auto", background: T.cream }}>{children}</main>
-        {mobile && <BottomNav />}
+        {mobile && <BottomNav module={module} />}
       </div>
     </div>
   );

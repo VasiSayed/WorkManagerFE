@@ -351,7 +351,9 @@ export function AgreementDetailPage() {
   if (!a) return <ErrorBox message={agreement.error || 'Agreement not found'} onRetry={agreement.reload} />;
   const active = a.status === 'active';
   const b = balance.data?.balance;
-  const linked = (meters.data || []).flatMap((m) => m.assignments.filter((x) => x.agreement === a.id).map((x) => ({ ...x, meterName: m.name, meterNumber: m.meter_number })));
+  // Meters that supply any of this agreement's units; their monthly bill is split into this tenant's rent.
+  const unitIds = (a.units || []).map((u) => u.id);
+  const linked = (meters.data || []).filter((m) => (m.units || []).some((id) => unitIds.includes(id)));
 
   const onActionDone = async (kind, result) => {
     setAction(null);
@@ -370,7 +372,6 @@ export function AgreementDetailPage() {
     const reason = window.prompt(`Void "${c.description}"? It will no longer be owed. Reason:`);
     if (reason) runAction({ action: () => pm.voidCharge(c.id, reason), onDone: reloadAll, onError: setError });
   };
-  const unlink = (x) => runAction({ confirmText: `Stop counting meter ${x.meterName} for this agreement from today?`, action: () => pm.endMeterAssignment(x.id, localDate()), onDone: reloadAll, onError: setError });
   const toggleReminders = (v) => runAction({ action: () => pm.saveAgreement({ reminders_enabled: v }, a.id), onDone: agreement.reload, onError: setError });
 
   const actionBtn = (kind, label, icon, variant = 'outline') => <Btn variant={variant} onClick={() => setAction(kind)}><Icon name={icon} size={14} /> {label}</Btn>;
@@ -438,7 +439,6 @@ export function AgreementDetailPage() {
           <Btn variant="outline" onClick={() => setFixedCharge(true)}><Icon name="clock" size={14} /> Fixed monthly charge</Btn>
           {actionBtn('deposit', 'Deposit received', 'wallet')}
           {balance.data && isPositive(balance.data.deposit.balance) && actionBtn('settle', 'Settle deposit', 'shield')}
-          {active && actionBtn('meter', 'Link meter', 'settings')}
           {actionBtn('document', 'Upload document', 'upload')}
           {active && actionBtn('end', 'Move out / end', 'logout', 'danger')}
         </div>
@@ -452,9 +452,9 @@ export function AgreementDetailPage() {
           ))}
         </Card>
         <Card>
-          <CardTitle title="Meters" />
-          {linked.length === 0 ? <Muted>No meters linked.</Muted> : linked.map((x) => (
-            <KV key={x.id} label={`${x.meterName} (${x.meterNumber})${x.share_percent ? ` · ${x.share_percent}%` : ''}`} value={<span>{prettyDate(x.start_date)} → {prettyDate(x.end_date)} {!x.end_date && <LinkBtn danger onClick={() => unlink(x)}>Unlink</LinkBtn>}</span>} />
+          <CardTitle title="Electricity meters" sub="Bills are added to this tenant's rent" />
+          {linked.length === 0 ? <Muted>No meter supplies these units. Add one under Electricity.</Muted> : linked.map((m) => (
+            <KV key={m.id} label={`${m.name} (#${m.meter_number})`} value={<Link to={`/rental/electricity/meters/${m.id}`} style={{ color: T.goldDark, fontWeight: 700 }}>{m.last_bill ? `Last: ${rupees(m.last_bill.amount)}` : 'Open'} ›</Link>} />
           ))}
         </Card>
         <Card>

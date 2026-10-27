@@ -6,7 +6,7 @@ import { Btn, Card, Input } from '../components/UI';
 import { Icon } from '../components/Icons';
 
 function AuthShell({ title, subtitle, children }) {
-  if (getAccessToken()) return <Navigate to="/dashboard" replace />;
+  if (getAccessToken()) return <Navigate to="/home" replace />;
   return (
     <div className="auth-shell" style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '45% 55%', background: T.cream }}>
       <div className="auth-intro" style={{ background: T.navy, color: T.white, padding: 48, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
@@ -48,7 +48,7 @@ export function LoginPage() {
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true); setError('');
-    try { await api.auth.login(form.email, form.password); navigate('/dashboard', { replace: true }); }
+    try { await api.auth.login(form.email, form.password); navigate('/home', { replace: true }); }
     catch (err) { setError(getErrorMessage(err)); }
     finally { setLoading(false); }
   };
@@ -75,7 +75,7 @@ export function RegisterPage() {
   const [error, setError] = useState('');
   const submit = async (e) => {
     e.preventDefault(); setLoading(true); setError('');
-    try { await api.auth.register(form); navigate('/dashboard', { replace: true }); }
+    try { await api.auth.register(form); navigate('/home', { replace: true }); }
     catch (err) { setError(getErrorMessage(err)); }
     finally { setLoading(false); }
   };

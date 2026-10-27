@@ -33,6 +33,7 @@ import {
   TaskDetailPage,
   TaskListPage,
 } from './pages/IntegratedPages';
+import ModuleHome from './pages/ModuleHome';
 import RentalDashboard from './pages/rental/RentalDashboard';
 import Collection from './pages/rental/Collection';
 import { PropertiesPage, PropertyDetailPage } from './pages/rental/Properties';
@@ -73,7 +74,8 @@ function App() {
         }
       `}</style>
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/home" element={<ProtectedLayout><ModuleHome /></ProtectedLayout>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -144,7 +146,7 @@ function App() {
         <Route path="/management/jobs/new" element={<ProtectedLayout><ManagementPage /></ProtectedLayout>} />
         <Route path="/management/jobs/:id" element={<ProtectedLayout><ManagementPage /></ProtectedLayout>} />
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </BrowserRouter>
   );

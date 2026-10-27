@@ -70,7 +70,14 @@ export const pm = {
   deleteExpense: (id) => del(`/expenses/${id}/`),
 
   meters: (params) => list('/electricity/meters/', params),
+  meter: (id) => get(`/electricity/meters/${id}/`),
   saveMeter: (data, id) => save('/electricity/meters/', id, data),
+  meterSplitSetup: (id, month) => get(`/electricity/meters/${id}/split-setup/`, { month }),
+  // body: { month, amount, method, lines: { unitId: { units } | { amount } }, preview? }
+  meterBill: (id, body, file) => (file
+    ? upload(`/electricity/meters/${id}/bill/`, toFormData({ ...body, lines: JSON.stringify(body.lines || {}) }, { attachment: file }))
+    : post(`/electricity/meters/${id}/bill/`, body)),
+  meterBills: (id) => get(`/electricity/meters/${id}/bills/`),
   assignMeter: (data) => post('/electricity/meter-assignments/', data),
   endMeterAssignment: (id, end_date) => patch(`/electricity/meter-assignments/${id}/`, { end_date }),
   readings: (params) => list('/electricity/readings/', params),
