@@ -5,8 +5,16 @@ import { api, getAccessToken, getErrorMessage } from '../api/client';
 import { Btn, Card, Input } from '../components/UI';
 import { Icon } from '../components/Icons';
 
+/** Same-site path from ?next=, else the module home. */
+function useNextPath() {
+  const [params] = useSearchParams();
+  const next = params.get('next') || '';
+  return next.startsWith('/') && !next.startsWith('//') ? next : '/home';
+}
+
 function AuthShell({ title, subtitle, children }) {
-  if (getAccessToken()) return <Navigate to="/home" replace />;
+  const next = useNextPath();
+  if (getAccessToken()) return <Navigate to={next} replace />;
   return (
     <div className="auth-shell" style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '45% 55%', background: T.cream }}>
       <div className="auth-intro" style={{ background: T.navy, color: T.white, padding: 48, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
@@ -42,13 +50,14 @@ function ErrorBox({ error }) {
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const next = useNextPath();
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true); setError('');
-    try { await api.auth.login(form.email, form.password); navigate('/home', { replace: true }); }
+    try { await api.auth.login(form.email, form.password); navigate(next, { replace: true }); }
     catch (err) { setError(getErrorMessage(err)); }
     finally { setLoading(false); }
   };

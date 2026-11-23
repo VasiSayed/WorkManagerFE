@@ -83,28 +83,57 @@ async function parseResponse(res) {
   return body;
 }
 
-export async function apiRequest(
-  path,
-  { method = "GET", body, params, headers = {}, isFormData = false } = {},
-) {
-  const token = getAccessToken();
-  const options = {
-    method,
-    headers: {
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
+/** Where to come back to after logging in (e.g. the box a scanned label opened). */
+export function loginPath(next = window.location.pathname + window.location.search) {
+  return next && next !== "/" && !next.startsWith("/login") ? `/login?next=${encodeURIComponent(next)}` : "/login";
+}
+
+let refreshing = null;
+/** Swap the refresh token for a new access token; one request at a time, shared by parallel calls. */
+async function refreshAccess() {
+  const refresh = localStorage.getItem(TOKEN_KEYS.refresh);
+  if (!refresh) return false;
+  refreshing = refreshing || fetch(makeUrl("/auth/refresh/"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh }),
+  })
+    .then(async (res) => {
+      if (!res.ok) return false;
+      saveAuth(await res.json()); // also stores the rotated refresh token
+      return true;
+    })
+    .catch(() => false)
+    .finally(() => { refreshing = null; });
+  return refreshing;
+}
+
+/** fetch() with the access token; renews it once on 401, else signs out and returns to this page after login. */
+export async function authFetch(path, { method = "GET", body, params, headers = {}, isFormData = false } = {}) {
+  const send = () => {
+    const token = getAccessToken();
+    const options = {
+      method,
+      headers: {
+        ...(isFormData || body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+    };
+    if (body !== undefined) options.body = isFormData ? body : JSON.stringify(body);
+    return fetch(makeUrl(path, params), options);
   };
-  if (body !== undefined)
-    options.body = isFormData ? body : JSON.stringify(body);
-  const res = await fetch(makeUrl(path, params), options);
-  if (res.status === 401) {
+  let res = await send();
+  if (res.status === 401 && !path.startsWith("/auth/login") && (await refreshAccess())) res = await send();
+  if (res.status === 401 && !path.startsWith("/auth/login")) {
     clearAuth();
-    if (!window.location.pathname.startsWith("/login"))
-      window.location.href = "/login";
+    if (!window.location.pathname.startsWith("/login")) window.location.href = loginPath();
   }
-  return parseResponse(res);
+  return res;
+}
+
+export async function apiRequest(path, options = {}) {
+  return parseResponse(await authFetch(path, options));
 }
 
 export const api = {

@@ -1,15 +1,16 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { getStoredUser } from '../api/client';
 import { Icon } from '../components/Icons';
-import { lastModule, MODULES, rememberModule } from '../modules';
+import { lastModule, menuItems, rememberModule, useAppUser, visibleModules } from '../modules';
 import { T } from '../theme';
 
 /** Start screen: pick a module; the sidebar then shows only that module's pages. */
 export default function ModuleHome() {
   const navigate = useNavigate();
-  const user = getStoredUser() || {};
-  const last = lastModule();
-  const open = (m, path = m.items[0].path) => { rememberModule(m.key); navigate(path); };
+  const user = useAppUser() || {};
+  const modules = visibleModules(user);
+  const remembered = lastModule();
+  const last = remembered && modules.find((m) => m.key === remembered.key);
+  const open = (m, path = menuItems(m)[0].path) => { rememberModule(m.key); navigate(path); };
   const firstName = (user.full_name || '').split(' ')[0];
 
   return (
@@ -27,7 +28,14 @@ export default function ModuleHome() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 16 }}>
-        {MODULES.map((m) => (
+        {modules.length === 0 && (
+          <div style={{ gridColumn: '1 / -1', background: T.white, border: `1px solid ${T.border}`, borderRadius: 16, padding: 24, textAlign: 'center', color: T.slate }}>
+            <Icon name="lock" size={28} style={{ color: T.slateLight }} />
+            <div style={{ fontWeight: 800, color: T.navy, marginTop: 8 }}>No modules yet</div>
+            <div style={{ fontSize: 13, marginTop: 4 }}>Ask the admin to give you access. It appears here as soon as they do.</div>
+          </div>
+        )}
+        {modules.map((m) => (
           <div key={m.key} style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 1px 2px rgba(15,23,42,.04)' }}>
             <button type="button" onClick={() => open(m)} style={{ display: 'flex', gap: 12, alignItems: 'center', border: 0, background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
               <span style={{ width: 46, height: 46, borderRadius: 13, background: `${m.color}1A`, color: m.color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name={m.icon} size={23} /></span>
@@ -37,10 +45,10 @@ export default function ModuleHome() {
               </span>
             </button>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {m.items.slice(0, 5).map((item) => (
+              {menuItems(m).slice(0, 5).map((item) => (
                 <Link key={item.path} to={item.path} onClick={() => rememberModule(m.key)} style={{ fontSize: 11, padding: '4px 9px', borderRadius: 999, background: T.rowAlt, border: `1px solid ${T.border}`, color: T.slate, fontWeight: 600 }}>{item.label}</Link>
               ))}
-              {m.items.length > 5 && <span style={{ fontSize: 11, padding: '4px 4px', color: T.slateLight }}>+{m.items.length - 5} more</span>}
+              {menuItems(m).length > 5 && <span style={{ fontSize: 11, padding: '4px 4px', color: T.slateLight }}>+{menuItems(m).length - 5} more</span>}
             </div>
             <button type="button" onClick={() => open(m)} style={{ marginTop: 'auto', padding: '9px 12px', borderRadius: 10, border: 0, background: T.navy, color: T.white, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               Open {m.label} <Icon name="arrowRight" size={14} />

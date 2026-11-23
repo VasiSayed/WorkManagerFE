@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { T } from "../theme";
 import { api, endpoints, getStoredUser, normalizeList, resolveAssetUrl } from "../api/client";
 import { Icon } from "./Icons";
-import { locate, MODULES, rememberModule } from "../modules";
+import { locate, menuItems, refreshAppUser, rememberModule, useAppUser, visibleModules } from "../modules";
 
 const useIsMobile = () => {
   const get = () => (typeof window !== "undefined" ? window.innerWidth <= 768 : false);
@@ -29,13 +29,13 @@ function RailButton({ module, active, onClick }) {
   );
 }
 
-function Rail({ current }) {
+function Rail({ current, modules }) {
   const navigate = useNavigate();
   const location = useLocation();
   const user = getStoredUser() || {};
   const initials = (user.full_name || user.email || "U").split(/[ @]/).filter(Boolean).slice(0, 2).map((x) => x[0]?.toUpperCase()).join("") || "U";
   const logout = () => { api.auth.logout(); navigate("/login", { replace: true }); };
-  const open = (m) => { rememberModule(m.key); navigate(m.items[0].path); };
+  const open = (m) => { rememberModule(m.key); navigate(menuItems(m)[0].path); };
 
   return (
     <nav aria-label="Modules" style={{ width: 76, flexShrink: 0, background: T.navy, display: "flex", flexDirection: "column", alignItems: "center", padding: "14px 0", gap: 6, position: "sticky", top: 0, height: "100vh", overflowY: "auto" }}>
@@ -43,7 +43,7 @@ function Rail({ current }) {
         style={{ width: 44, height: 44, borderRadius: 12, border: 0, background: location.pathname === "/home" ? T.gold : "rgba(255,255,255,.1)", color: T.white, fontWeight: 900, fontSize: 15, cursor: "pointer", marginBottom: 10 }}>
         WM
       </button>
-      {MODULES.map((m) => <RailButton key={m.key} module={m} active={current?.key === m.key} onClick={() => open(m)} />)}
+      {modules.map((m) => <RailButton key={m.key} module={m} active={current?.key === m.key} onClick={() => open(m)} />)}
       <div style={{ flex: 1 }} />
       <div title={user.email || ""} style={{ width: 34, height: 34, borderRadius: "50%", background: T.gold, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: T.white }}>{initials}</div>
       <button type="button" onClick={logout} title="Logout" aria-label="Logout" style={{ width: 36, height: 36, border: 0, background: "transparent", color: "rgba(255,255,255,.55)", cursor: "pointer" }}>
@@ -60,10 +60,10 @@ function SubBar({ module }) {
         <span style={{ width: 32, height: 32, borderRadius: 9, background: `${module.color}1A`, color: module.color, display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Icon name={module.icon} size={17} /></span>
         <div>
           <div style={{ fontSize: 15, fontWeight: 800, color: T.navy }}>{module.label}</div>
-          <div style={{ fontSize: 10, color: T.slateLight }}>{module.items.length} page{module.items.length === 1 ? "" : "s"}</div>
+          <div style={{ fontSize: 10, color: T.slateLight }}>{menuItems(module).length} page{menuItems(module).length === 1 ? "" : "s"}</div>
         </div>
       </div>
-      {module.items.map((item) => (
+      {menuItems(module).map((item) => (
         <NavLink key={item.path} to={item.path} end={item.end}
           style={({ isActive }) => ({ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, marginBottom: 2, textDecoration: "none",
             background: isActive ? T.goldLight : "transparent", color: isActive ? T.goldDark : T.slate, fontWeight: isActive ? 700 : 500, fontSize: 13 })}>
@@ -189,7 +189,7 @@ export const AppHeader = () => {
 
 /** Phones: the current module's first pages plus a button back to the module launcher. */
 const BottomNav = ({ module }) => {
-  const items = module ? module.items.slice(0, 4) : [];
+  const items = module ? menuItems(module).slice(0, 4) : [];
   return (
     <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, minHeight: 64, paddingBottom: "env(safe-area-inset-bottom)", background: T.white, borderTop: `1px solid ${T.border}`, zIndex: 120, display: "grid", gridTemplateColumns: `repeat(${items.length + 1},1fr)`, boxShadow: "0 -8px 24px rgba(15,23,42,.08)" }}>
       {items.map((n) => (
@@ -206,21 +206,40 @@ const BottomNav = ({ module }) => {
   );
 };
 
+function NoAccess({ module }) {
+  return (
+    <div style={{ maxWidth: 440, margin: "48px auto", textAlign: "center", background: T.white, border: `1px solid ${T.border}`, borderRadius: 16, padding: "28px 20px" }}>
+      <Icon name="lock" size={32} style={{ color: T.slateLight }} />
+      <h1 style={{ fontSize: 18, color: T.navy, margin: "12px 0 6px" }}>No access to {module.label}</h1>
+      <p style={{ fontSize: 13, color: T.slateLight, lineHeight: 1.6 }}>Ask the admin to give you this module in Settings › Users & Access.</p>
+      <NavLink to="/home" style={{ display: "inline-block", marginTop: 16, padding: "10px 16px", borderRadius: 10, background: T.navy, color: T.white, fontWeight: 700, fontSize: 13 }}>Go to my modules</NavLink>
+    </div>
+  );
+}
+
 export const Layout = ({ children }) => {
   const mobile = useIsMobile();
   const location = useLocation();
+  const user = useAppUser();
+  const modules = visibleModules(user);
   const found = locate(location.pathname);
-  const module = found?.module || null;
+  const allowed = !found || modules.some((m) => m.key === found.module.key);
+  const module = found && allowed ? modules.find((m) => m.key === found.module.key) : null;
 
-  useEffect(() => { if (module) rememberModule(module.key); }, [module]);
+  useEffect(() => { void refreshAppUser(); }, []);
+  useEffect(() => { if (module) rememberModule(module.key); }, [module?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter', -apple-system, sans-serif" }}>
-      {!mobile && <Rail current={module} />}
+      {!mobile && <Rail current={module} modules={modules} />}
       {!mobile && module && <SubBar module={module} />}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+      {/* overflow "clip" (not hidden/auto) stops sideways overflow without making these scroll containers,
+          so position: sticky (header, action bars) sticks to the page while it scrolls. */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflowX: "clip" }}>
         <AppHeader />
-        <main style={{ flex: 1, padding: mobile ? "14px 10px 84px" : "28px 32px", overflowY: "auto", background: T.cream }}>{children}</main>
+        <main style={{ flex: 1, padding: mobile ? "14px 12px 88px" : "28px 32px", overflowX: "clip", background: T.cream }}>
+          {allowed ? children : <NoAccess module={found.module} />}
+        </main>
         {mobile && <BottomNav module={module} />}
       </div>
     </div>

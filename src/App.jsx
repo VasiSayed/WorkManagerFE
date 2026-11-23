@@ -34,6 +34,11 @@ import {
   TaskListPage,
 } from './pages/IntegratedPages';
 import ModuleHome from './pages/ModuleHome';
+import AccessPage from './pages/AccessPage';
+import BoxPage from './pages/findit/BoxPage';
+import {
+  FindItBoxes, FindItCreate, FindItFamily, FindItHome, FindItPrint, FindItPurposes, FindItScan, QrLanding,
+} from './pages/findit/FindItPages';
 import RentalDashboard from './pages/rental/RentalDashboard';
 import Collection from './pages/rental/Collection';
 import { PropertiesPage, PropertyDetailPage } from './pages/rental/Properties';
@@ -139,6 +144,18 @@ function App() {
         <Route path="/rental/expenses" element={<ProtectedLayout><RentalExpensesPage /></ProtectedLayout>} />
         <Route path="/rental/charges" element={<ProtectedLayout><ChargesPage /></ProtectedLayout>} />
         <Route path="/rental/reports" element={<ProtectedLayout><RentalReportsPage /></ProtectedLayout>} />
+
+        <Route path="/findit" element={<ProtectedLayout><FindItHome /></ProtectedLayout>} />
+        <Route path="/findit/boxes" element={<ProtectedLayout><FindItBoxes /></ProtectedLayout>} />
+        <Route path="/findit/scan" element={<ProtectedLayout><FindItScan /></ProtectedLayout>} />
+        <Route path="/findit/create" element={<ProtectedLayout><FindItCreate /></ProtectedLayout>} />
+        <Route path="/findit/print" element={<ProtectedLayout><FindItPrint /></ProtectedLayout>} />
+        <Route path="/findit/purposes" element={<ProtectedLayout><FindItPurposes /></ProtectedLayout>} />
+        <Route path="/findit/family" element={<ProtectedLayout><FindItFamily /></ProtectedLayout>} />
+        <Route path="/findit/box/:uuid" element={<ProtectedLayout><BoxPage /></ProtectedLayout>} />
+        <Route path="/findit/box/:uuid/history" element={<ProtectedLayout><BoxPage tab="history" /></ProtectedLayout>} />
+        <Route path="/q/:uuid" element={<ProtectedRoute><QrLanding /></ProtectedRoute>} />
+        <Route path="/settings/access" element={<ProtectedLayout><AccessPage /></ProtectedLayout>} />
 
         <Route path="/reports" element={<ProtectedLayout><ReportsPage /></ProtectedLayout>} />
         <Route path="/reports/:category" element={<ProtectedLayout><ReportsPage /></ProtectedLayout>} />

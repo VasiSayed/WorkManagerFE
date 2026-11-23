@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { api, getStoredUser, saveAuth } from "./api/client";
+
 // App modules and their pages. The left rail lists modules; the sub-bar shows the pages of the selected one.
 export const MODULES = [
   {
@@ -65,6 +68,23 @@ export const MODULES = [
     ],
   },
   {
+    key: "findit",
+    label: "FindIt",
+    icon: "box",
+    color: "#EA580C",
+    description: "QR labels on boxes and bags — scan to see what's inside, search to find anything.",
+    items: [
+      { path: "/findit", icon: "home", label: "Home", end: true },
+      { path: "/findit/boxes", icon: "search", label: "Search" },
+      { path: "/findit/scan", icon: "scan", label: "Scan" },
+      { path: "/findit/print", icon: "printer", label: "Print labels" },
+      { path: "/findit/create", icon: "plus", label: "New labels" },
+      { path: "/findit/purposes", icon: "tag", label: "Purposes" },
+      { path: "/findit/family", icon: "users", label: "Family" },
+      { path: "/findit/box", icon: "box", label: "Box", hidden: true },
+    ],
+  },
+  {
     key: "people",
     label: "People",
     icon: "users",
@@ -87,6 +107,7 @@ export const MODULES = [
       { path: "/management/email-templates", icon: "mail", label: "Email Templates" },
       { path: "/management/email-variables", icon: "variables", label: "Email Variables" },
       { path: "/management/document-categories", icon: "archive", label: "Document Categories" },
+      { path: "/settings/access", icon: "lock", label: "Users & Access", adminOnly: true },
     ],
   },
 ];
@@ -102,6 +123,43 @@ export function locate(pathname) {
     }
   }
   return best;
+}
+
+/* ── Which modules the signed-in user may use (from /auth/me) ── */
+
+const USER_EVENT = "wm-user-updated";
+
+/** Modules and pages this user can open. Before /auth/me has answered once, show everything. */
+export function visibleModules(user) {
+  const allowed = Array.isArray(user?.modules) ? new Set(user.modules) : null;
+  return MODULES.filter((m) => !allowed || allowed.has(m.key))
+    .map((m) => ({ ...m, items: m.items.filter((i) => !i.adminOnly || user?.is_admin) }))
+    .filter((m) => m.items.length);
+}
+
+/** Pages shown in menus (hidden ones like a single box are reachable only by link). */
+export const menuItems = (module) => module.items.filter((i) => !i.hidden);
+
+export function useAppUser() {
+  const [user, setUser] = useState(getStoredUser);
+  useEffect(() => {
+    const update = () => setUser(getStoredUser());
+    window.addEventListener(USER_EVENT, update);
+    return () => window.removeEventListener(USER_EVENT, update);
+  }, []);
+  return user;
+}
+
+/** Re-read the user (modules may have been changed by an admin) and tell every listener. */
+export async function refreshAppUser() {
+  try {
+    const user = await api.auth.me();
+    saveAuth(null, user);
+    window.dispatchEvent(new Event(USER_EVENT));
+    return user;
+  } catch {
+    return null;
+  }
 }
 
 const LAST_KEY = "wm_last_module";

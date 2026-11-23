@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { T } from '../theme';
-import { api, endpoints, getAccessToken, getErrorMessage, normalizeList, resolveAssetUrl } from '../api/client';
+import { api, endpoints, getAccessToken, getErrorMessage, loginPath, normalizeList, resolveAssetUrl } from '../api/client';
 import { useApiDetail, useApiList } from '../hooks/useApi';
 import {
   Badge, Breadcrumb, Btn, Card, EmptyState, FilterChips, Input, Modal, PageHeader,
@@ -11,7 +11,7 @@ import { parseNotepadMulti, parseActionItems } from '../utils/parser';
 import { Icon } from '../components/Icons';
 
 export function ProtectedRoute({ children }) {
-  return getAccessToken() ? children : <Navigate to="/login" replace />;
+  return getAccessToken() ? children : <Navigate to={loginPath()} replace />;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
